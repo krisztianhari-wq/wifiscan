@@ -1,0 +1,90 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m compileall -q wifiscan
+      - run: python -m wifiscan --version
+      - run: ./build_pyz.sh && ./dist/wifiscan.pyz --version
+      - uses: actions/upload-artifact@v4
+        with: { name: wifiscan-pyz, path: dist/wifiscan.pyz }
+
+  app:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14,       label: macos-arm64,  bundle: tools/bundle_nmap_macos.sh,   setup: 'brew install nmap' }
+          - { os: macos-13,       label: macos-x86_64, bundle: tools/bundle_nmap_macos.sh,   setup: 'brew install nmap' }
+          - { os: windows-latest, label: windows-x64,  bundle: tools/bundle_nmap_windows.sh, setup: 'choco install 7zip -y --no-progress' }
+          - { os: ubuntu-22.04,   label: linux-x86_64, bundle: tools/bundle_nmap_linux.sh,   setup: 'sudo apt-get update -q && sudo apt-get install -y -q nmap patchelf' }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install nmap / tools
+        shell: bash
+        run: ${{ matrix.setup }}
+      - name: Bundle nmap
+        shell: bash
+        run: ${{ matrix.bundle }}
+      - name: Build app
+        shell: bash
+        run: |
+          python -m pip install -q pyinstaller
+          ./build_app.sh
+          ls -la dist
+      - name: Smoke test bundled nmap
+        shell: bash
+        run: |
+          case "${{ matrix.os }}" in
+            windows*) N=dist/app/WifiScan/_internal/nmap/bin/nmap.exe ;;
+            macos*)   N=dist/app/WifiScan.app/Contents/Frameworks/nmap/bin/nmap ;;
+            *)        N=dist/app/WifiScan/_internal/nmap/bin/nmap ;;
+          esac
+          "$N" --version | head -1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WifiScan-${{ matrix.label }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [check, app]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - run: ls -la out
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true
+          body: |
+            **wifiscan – Hackerman edition.** Home-network device inventory · Otthoni hálózat eszközleltár.
+
+            | File | Platform | nmap included |
+            |---|---|---|
+            | `WifiScan-macos-arm64.zip` | macOS Apple Silicon (right-click → Open on first launch) | yes |
+            | `WifiScan-macos-x86_64.zip` | macOS Intel | yes |
+            | `WifiScan-windows-x64.zip` | Windows 10/11 (install Npcap for `-O`) | yes |
+            | `WifiScan-linux-x86_64.tar.gz` | Linux glibc ≥ 2.35 | yes |
+            | `wifiscan.pyz` | any OS with Python 3.9+ | no (uses system nmap) |
