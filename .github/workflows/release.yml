@@ -30,7 +30,7 @@ jobs:
       matrix:
         include:
           - { os: macos-14,       label: macos-arm64,  bundle: tools/bundle_nmap_macos.sh,   setup: 'brew install nmap' }
-          - { os: macos-13,       label: macos-x86_64, bundle: tools/bundle_nmap_macos.sh,   setup: 'brew install nmap' }
+          - { os: macos-15-intel,       label: macos-x86_64, bundle: tools/bundle_nmap_macos.sh,   setup: 'brew install nmap' }
           - { os: windows-latest, label: windows-x64,  bundle: tools/bundle_nmap_windows.sh, setup: 'choco install 7zip -y --no-progress' }
           - { os: ubuntu-22.04,   label: linux-x86_64, bundle: tools/bundle_nmap_linux.sh,   setup: 'sudo apt-get update -q && sudo apt-get install -y -q nmap patchelf' }
     runs-on: ${{ matrix.os }}
