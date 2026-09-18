@@ -151,7 +151,7 @@ a{color:var(--cyan)}
   <div id="hist"></div>
 </div>
 <div class="foot"></div>
-<div class="footnote"><span>Krisz · Home Lab · "I'm gonna hack time"</span><span>wifiscan __VERSION__ · python stdlib + nmap · E=mc³</span></div>
+<div class="footnote"><span>sadrobot · Krisz · Home Lab · "I'm gonna hack time"</span><span>wifiscan __VERSION__ · python stdlib + nmap · E=mc³</span></div>
 </div>
 <script>
 const TOKEN="__TOKEN__";

@@ -1,5 +1,7 @@
 # wifiscan — Hackerman edition
 
+*by **sadrobot** (Krisztián Hári)*
+
 **EN** · Home-network device inventory: who is on the WiFi, vendor from the MAC address, device type, running
 services (nmap), new-device alert. Python stdlib core, SQLite history, local web GUI in Kung Fury / Hackerman
 VHS-synthwave style. English / Hungarian UI (toggle in the top bar).
