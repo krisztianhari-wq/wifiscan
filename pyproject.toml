@@ -8,6 +8,8 @@ version = "0.2.0"
 description = "Home network device inventory with a Hackerman-style GUI: who is on the WiFi, vendor, device type, running services (nmap)"
 requires-python = ">=3.9"
 license = {text = "MIT"}
+authors = [{name = "sadrobot (Krisztián Hári)"}]
+urls = {Homepage = "https://github.com/krisztianhari-wq/wifiscan"}
 dependencies = []
 
 [project.scripts]
