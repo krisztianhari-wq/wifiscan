@@ -9,7 +9,8 @@ cd "$(dirname "$0")"
 [ -x vendor/nmap/bin/nmap ] || [ -f vendor/nmap/bin/nmap.exe ] || { echo "vendor/nmap missing – run tools/bundle_nmap_<os>.sh first (or set SKIP_NMAP=1)"; [ -n "$SKIP_NMAP" ] || exit 1; }
 mkdir -p build dist
 printf 'import sys\nfrom wifiscan.cli import main\nsys.exit(main())\n' > build/entry.py
-VER=$(python3 -c 'import wifiscan;print(wifiscan.__version__)')
+PY=$(command -v python3 || command -v python)
+VER=$($PY -c 'import wifiscan;print(wifiscan.__version__)')
 case "$(uname -s)" in
   Darwin) ICON="$(pwd)/assets/wifiscan.icns"; OS=macos ;;
   MINGW*|MSYS*|CYGWIN*|Windows_NT) ICON="$(pwd)/assets/wifiscan.ico"; OS=windows ;;
@@ -17,7 +18,7 @@ case "$(uname -s)" in
 esac
 PYI=${PYINSTALLER:-pyinstaller}
 ADD=""; [ -d vendor/nmap ] && ADD="--add-data $(pwd)/vendor/nmap:nmap"
-[ "$OS" = windows ] && [ -d vendor/nmap ] && ADD="--add-data $(pwd)/vendor/nmap;nmap"
+if [ "$OS" = windows ]; then W=$(cygpath -w "$(pwd)" 2>/dev/null || pwd); ICON="$W\\assets\\wifiscan.ico"; [ -d vendor/nmap ] && ADD="--add-data $W\\vendor\\nmap;nmap"; fi
 $PYI --onedir --windowed --name WifiScan --icon "$ICON" --clean --noconfirm --paths . $ADD \
      --osx-bundle-identifier hu.krisz.wifiscan \
      --distpath dist/app --workpath build/pyi-app --specpath build build/entry.py
@@ -30,7 +31,7 @@ if [ "$OS" = macos ]; then
   ZIP="dist/WifiScan-macos-$(uname -m).zip"; rm -f "$ZIP" && (cd dist/app && ditto -c -k --keepParent WifiScan.app "../$(basename "$ZIP")")
   echo "built $APP and $ZIP ($(du -sh "$ZIP" | cut -f1))"
 elif [ "$OS" = windows ]; then
-  (cd dist/app && powershell -c "Compress-Archive -Force WifiScan ../WifiScan-windows-x64.zip") && echo "built dist/WifiScan-windows-x64.zip"
+  $PY -c "import shutil;shutil.make_archive('dist/WifiScan-windows-x64','zip','dist/app','WifiScan')" && echo "built dist/WifiScan-windows-x64.zip"
 else
   (cd dist/app && tar czf "../WifiScan-linux-$(uname -m).tar.gz" WifiScan) && echo "built dist/WifiScan-linux-$(uname -m).tar.gz"
 fi
