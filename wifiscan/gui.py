@@ -234,7 +234,7 @@ document.getElementById('nmap-sel').onclick=async()=>{if(!sel.size){say(t('speci
 document.getElementById('nmap-stop').onclick=()=>api('/api/stop').then(()=>say(t('abort'))).catch(e=>say(e));
 run.onclick=async()=>{if(run.disabled)return;run.disabled=true;sel.clear();out.innerHTML="";sum.innerHTML="";
   try{await api('/api/scan',{mode:mode.value});say(t('scanning')+' '+mode.value.toUpperCase()+' ...');
-    watch(r=>{render(r);say(t('online_msg')(r.hosts.length,r.hosts.filter(h=>h.new).length,r.run_id));showRuns()},()=>{run.disabled=false})}
+    watch(r=>{render(r);say(t('online_msg')(r.hosts.length,r.hosts.filter(h=>h.new).length,r.run_id)+(r.warning?' · '+r.warning:''));showRuns()},()=>{run.disabled=false})}
   catch(e){run.disabled=false;say(e)}};
 function histTable(rows,cols,onclick){const h=document.getElementById('hist');
   h.innerHTML='<table><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr>'+rows.map(r=>'<tr class="'+(onclick?'click':'')+'" data-id="'+esc(r.id)+'">'+cols.map(c=>'<td class="'+(c[2]||'')+'">'+(c[1](r))+'</td>').join('')+'</tr>').join('')+'</table>';
@@ -309,7 +309,8 @@ class Job:
     def _work(self, mode, store):
         try:
             iface, my_ip, net = wifiscan.local_network()
-            self.log = "PING SWEEP %s" % net
+            warn = wifiscan.vpn_warning(iface, net)
+            self.log = (warn + " · " if warn else "") + "PING SWEEP %s" % net
             wifiscan.ping_sweep(net)
             hosts = list(wifiscan.arp_table(net).values())
             if not any(h["ip"] == my_ip for h in hosts):
@@ -330,7 +331,7 @@ class Job:
             hosts.sort(key=lambda h: [int(x) for x in h["ip"].split(".")])
             run_id, new = store.save_run(str(net), mode, hosts)
             store.decorate(hosts)
-            self.result = {"hosts": hosts, "run_id": run_id, "network": str(net), "hints": wifiscan.PORT_HINTS}
+            self.result = {"hosts": hosts, "run_id": run_id, "network": str(net), "hints": wifiscan.PORT_HINTS, "warning": warn}
         except Exception as e:
             self.error = str(e)
         finally:

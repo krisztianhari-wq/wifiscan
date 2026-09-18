@@ -36,6 +36,29 @@ def local_network():
     sys.exit("No active WiFi/Ethernet interface found.")
 
 
+def route_interface(ip):
+    """Melyik interfészen megy ki a forgalom az adott IP felé (macOS/BSD `route get`, Linux `ip route get`)."""
+    try:
+        if sys.platform == "darwin":
+            out = subprocess.check_output(["route", "-n", "get", str(ip)], text=True, stderr=subprocess.DEVNULL)
+            m = re.search(r"interface:\s*(\S+)", out)
+        else:
+            out = subprocess.check_output(["ip", "route", "get", str(ip)], text=True, stderr=subprocess.DEVNULL)
+            m = re.search(r"\bdev\s+(\S+)", out)
+        return m.group(1) if m else None
+    except Exception:
+        return None
+
+
+def vpn_warning(iface, net):
+    """Ha az alhálózat forgalma nem a WiFi/Ethernet interfészen megy (VPN elviszi), figyelmeztetés."""
+    probe = list(net.hosts())[len(list(net.hosts())) // 2]
+    via = route_interface(probe)
+    if via and via != iface:
+        return f"WARNING: {net} is routed via {via} (VPN?) instead of {iface} – the sweep will miss devices; disconnect the VPN or add a route"
+    return ""
+
+
 def ping_sweep(net):
     """Minden címre egy ping, hogy feltöltse az ARP-táblát."""
     def ping(ip):
@@ -255,6 +278,9 @@ def main():
 
     iface, my_ip, net = local_network()
     print(f"[*] Interface: {iface}  my IP: {my_ip}  network: {net}")
+    w = vpn_warning(iface, net)
+    if w:
+        print("[!] " + w, file=sys.stderr)
     print("[*] Ping sweep (populating ARP table)…")
     ping_sweep(net)
     hosts = arp_table(net)
