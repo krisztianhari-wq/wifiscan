@@ -126,7 +126,7 @@ a{color:var(--cyan)}
       <option value="ports" data-i18n="m_ports"></option>
       <option value="nmap" data-i18n="m_nmap"></option>
     </select>
-    <span class="sys" id="net"><span data-i18n="network"></span>: __NET__ · nmap: __NMAP__</span>
+    <span class="sys" id="net"><span data-i18n="network"></span>: <span id="netv">__NET__</span> · nmap: __NMAP__</span>
     <button id="run" type="button">Hack time</button>
   </div>
   <div class="hint" data-i18n="hint_req"></div>
@@ -234,7 +234,7 @@ document.getElementById('nmap-sel').onclick=async()=>{if(!sel.size){say(t('speci
 document.getElementById('nmap-stop').onclick=()=>api('/api/stop').then(()=>say(t('abort'))).catch(e=>say(e));
 run.onclick=async()=>{if(run.disabled)return;run.disabled=true;sel.clear();out.innerHTML="";sum.innerHTML="";
   try{await api('/api/scan',{mode:mode.value});say(t('scanning')+' '+mode.value.toUpperCase()+' ...');
-    watch(r=>{render(r);say(t('online_msg')(r.hosts.length,r.hosts.filter(h=>h.new).length,r.run_id)+(r.warning?' · '+r.warning:''));showRuns()},()=>{run.disabled=false})}
+    watch(r=>{document.getElementById('netv').textContent=r.network;render(r);say(t('online_msg')(r.hosts.length,r.hosts.filter(h=>h.new).length,r.run_id)+(r.warning?' · '+r.warning:''));showRuns()},()=>{run.disabled=false})}
   catch(e){run.disabled=false;say(e)}};
 function histTable(rows,cols,onclick){const h=document.getElementById('hist');
   h.innerHTML='<table><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr>'+rows.map(r=>'<tr class="'+(onclick?'click':'')+'" data-id="'+esc(r.id)+'">'+cols.map(c=>'<td class="'+(c[2]||'')+'">'+(c[1](r))+'</td>').join('')+'</tr>').join('')+'</table>';
