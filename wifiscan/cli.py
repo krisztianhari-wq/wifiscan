@@ -5,7 +5,7 @@ from . import __version__
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="wifiscan", description="Otthoni hálózat eszközleltár (Hackerman edition)")
+    ap = argparse.ArgumentParser(prog="wifiscan", description="sadrobot wifiscan – otthoni hálózat eszközleltár")
     ap.add_argument("--version", action="version", version="wifiscan " + __version__)
     sub = ap.add_subparsers(dest="cmd")
     g = sub.add_parser("gui", help="webes felület (alapértelmezett)")

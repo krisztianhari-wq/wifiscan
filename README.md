@@ -1,14 +1,12 @@
-# wifiscan — Hackerman edition
+# sadrobot wifiscan
 
 *by **sadrobot** (Krisztián Hári)*
 
 **EN** · Home-network device inventory: who is on the WiFi, vendor from the MAC address, device type, running
-services (nmap), new-device alert. Python stdlib core, SQLite history, local web GUI in Kung Fury / Hackerman
-VHS-synthwave style. English / Hungarian UI (toggle in the top bar).
+services (nmap), new-device alert per location. Python stdlib core, SQLite history, clean local web dashboard. English / Hungarian UI (toggle in the top bar).
 
 **HU** · Otthoni hálózat eszközleltár: ki van a WiFi-n, gyártó a MAC-ből, eszköztípus, futó szolgáltatások
-(nmap), új eszköz riasztás. Python stdlib mag, SQLite történet, helyi web GUI Kung Fury / Hackerman
-VHS-synthwave stílusban. Angol / magyar felület (kapcsoló a felső sávban).
+(nmap), új eszköz riasztás helyenként. Python stdlib mag, SQLite történet, letisztult helyi web dashboard. Angol / magyar felület (kapcsoló a felső sávban).
 
 > Run it only on networks you own or are authorised to scan. · Csak saját vagy engedélyezett hálózaton futtasd.
 

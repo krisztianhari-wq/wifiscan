@@ -79,7 +79,7 @@ jobs:
           files: out/*
           generate_release_notes: true
           body: |
-            **wifiscan – Hackerman edition.** Home-network device inventory · Otthoni hálózat eszközleltár.
+            **sadrobot wifiscan.** Home-network device inventory · Otthoni hálózat eszközleltár.
 
             | File | Platform | nmap included |
             |---|---|---|

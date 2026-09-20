@@ -1,4 +1,4 @@
-"""wifiscan GUI – Hackerman / Kung Fury VHS-synthwave stílus (króm cím, neon magenta-cián, laser grid).
+"""sadrobot wifiscan GUI – letisztult, halványkék dashboard (üveg felső sáv, kártyák), EN/HU.
 
 Csak 127.0.0.1-en hallgat, minden API hívás a lapba ágyazott véletlen tokent viszi.
 Indítás:  python3 gui.py [--port 8766] [--no-browser]
@@ -14,7 +14,7 @@ HTML = r"""
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WIFISCAN</title>
+<title>sadrobot wifiscan</title>
 <style>
 :root{--bg:#F5F9FD;--surface:rgba(255,255,255,.6);--surface-2:rgba(238,244,250,.75);--solid:#FFFFFF;--line:#DCE7F1;--line-strong:#C3D4E4;
  --ink:#1B2733;--ink-2:#55697D;--ink-3:#7F92A5;--brand:#2F6497;--brand-soft:#BFDCF5;--mag:#6C93B8;--mag-soft:#E1EEF9;
@@ -38,7 +38,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 .topbar{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--solid) 70%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
 .topbar-in{max-width:1240px;margin:0 auto;padding:10px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;margin-right:6px}
-.brand .dot{width:32px;height:32px;border-radius:10px;background:var(--brand);color:var(--bg);display:grid;place-items:center;font-family:var(--head);font-weight:600;font-size:16px}
+.brand .dot{width:32px;height:32px;border-radius:10px;background:var(--brand);color:var(--bg);display:grid;place-items:center;font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:-.02em}
 .brand b{display:block;font-family:var(--head);font-weight:600;font-size:16px;letter-spacing:.01em;line-height:1.1}.brand span{display:block;font-size:11px;color:var(--ink-3)}
 nav{display:flex;gap:4px;flex-wrap:wrap}
 nav a{padding:6px 12px;border-radius:999px;color:var(--ink-2);font-weight:500;font-size:13px;border:1px solid transparent}
@@ -105,7 +105,7 @@ pre.svc{margin:6px 0 0;font:12px var(--mono);color:var(--ink);white-space:pre-wr
 </style></head>
 <body>
 <header class="topbar"><div class="topbar-in">
-  <div class="brand"><div class="dot">H</div><div><b>wifiscan</b><span>Hackerman edition · v__VERSION__</span></div></div>
+  <div class="brand"><div class="dot">sr</div><div><b>sadrobot</b><span>wifiscan · v__VERSION__</span></div></div>
   <nav>
     <a href="#scan" class="on"><i></i><span data-i18n="nav_scan">Scan</span></a>
     <a href="#devices"><i></i><span data-i18n="nav_devices">Devices</span></a>
@@ -166,7 +166,7 @@ pre.svc{margin:6px 0 0;font:12px var(--mono);color:var(--ink);white-space:pre-wr
   </section>
   </div>
   </div>
-  <div class="foot"><span>sadrobot · Krisz · Home Lab</span><span>wifiscan __VERSION__ · python stdlib + nmap · "I'm gonna hack time"</span></div>
+  <div class="foot"><span>sadrobot · Krisz · Home Lab</span><span>wifiscan __VERSION__ · python stdlib + nmap</span></div>
 </main>
 <script>
 const TOKEN="__TOKEN__";

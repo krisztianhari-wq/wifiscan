@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "wifiscan"
 version = "0.2.2"
-description = "Home network device inventory with a Hackerman-style GUI: who is on the WiFi, vendor, device type, running services (nmap)"
+description = "sadrobot wifiscan – home network device inventory: who is on the WiFi, vendor, device type, running services (nmap), locations"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [{name = "sadrobot (Krisztián Hári)"}]
