@@ -3,7 +3,7 @@
 Csak 127.0.0.1-en hallgat, minden API hívás a lapba ágyazott véletlen tokent viszi.
 Indítás:  python3 gui.py [--port 8766] [--no-browser]
 """
-import argparse, json, secrets, sys, threading, time, webbrowser
+import argparse, ipaddress, json, secrets, sys, threading, time, webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import engine as wifiscan, __version__ as VERSION
@@ -126,7 +126,8 @@ a{color:var(--cyan)}
       <option value="ports" data-i18n="m_ports"></option>
       <option value="nmap" data-i18n="m_nmap"></option>
     </select>
-    <span class="sys" id="net"><span data-i18n="network"></span>: <span id="netv">__NET__</span> · nmap: __NMAP__</span>
+    <input id="subnet" type="text" list="subnets" value="__NET__" style="flex:0 0 190px" title="subnet (CIDR)"><datalist id="subnets"></datalist>
+    <span class="sys" id="net"><span id="netv" class="hint" style="margin:0"></span> · nmap: __NMAP__</span>
     <button id="run" type="button">Hack time</button>
   </div>
   <div class="hint" data-i18n="hint_req"></div>
@@ -161,7 +162,7 @@ en:{tagline:"Network Inventory System · Power Glove Edition",sub:"Who is on the
  hint_req:"Server listens on 127.0.0.1 only. Run it on your own network only. Full NMAP mode runs -sV on everything; for targeted -O OS detection select IPs and enter the sudo password.",
  nmap_sel:"Nmap on selected",all:"All",none:"None",sudo_ph:"sudo password (optional, for -O OS detection)",
  sudo_hint:"The password goes only to the local server on 127.0.0.1, is passed to sudo via stdin, never stored or logged.",
- saved_to:"every run is saved to",runs:"Runs",devices:"Known devices",online:"devices online",
+ detected:(i,ip,c)=>`${i} ${ip} · detected: ${c}`,saved_to:"every run is saved to",runs:"Runs",devices:"Known devices",online:"devices online",
  th:["Status","IP","MAC","Vendor","Type","Name","Label","Action"],label_ph:"e.g. living room TV",trust:"Trust",untrust:"Untrust",ports:"ports",
  sel_n:n=>n+" selected",sel_hint:"select targets for nmap -sV",
  h_runs:["ID","Time","Mode","Network","Devices","New"],h_dev:["Status","MAC","Label","Vendor","Last IP","First seen","Last seen","Seen"],
@@ -173,7 +174,7 @@ hu:{tagline:"Hálózati eszközleltár · Power Glove kiadás",sub:"Ki van a WiF
  hint_req:"A szerver csak 127.0.0.1-en hallgat. Csak a saját hálózatodon futtasd. A teljes NMAP mód -sV-t futtat mindenre; célzott -O OS-felismeréshez jelöld ki az IP-ket és add meg a sudo jelszót.",
  nmap_sel:"Nmap a kijelöltekre",all:"Mind",none:"Egyik sem",sudo_ph:"sudo jelszó (opcionális, -O OS-felismeréshez)",
  sudo_hint:"A jelszó csak a helyi szervernek megy 127.0.0.1-en, stdin-en adja át a sudo-nak, nem tárolódik és nem naplózódik.",
- saved_to:"minden futás mentve",runs:"Futások",devices:"Ismert eszközök",online:"eszköz online",
+ detected:(i,ip,c)=>`${i} ${ip} · felismert: ${c}`,saved_to:"minden futás mentve",runs:"Futások",devices:"Ismert eszközök",online:"eszköz online",
  th:["Státusz","IP","MAC","Gyártó","Típus","Név","Címke","Ok"],label_ph:"pl. nappali TV",trust:"Trust",untrust:"Untrust",ports:"portok",
  sel_n:n=>n+" kijelölve",sel_hint:"jelöld ki, mire fusson nmap -sV",
  h_runs:["ID","Idő","Mód","Hálózat","Eszköz","Új"],h_dev:["Státusz","MAC","Címke","Gyártó","Utolsó IP","Először","Utoljára","Látva"],
@@ -232,9 +233,11 @@ document.getElementById('nmap-sel').onclick=async()=>{if(!sel.size){say(t('speci
     watch(r=>{for(const h of current.hosts)if(r.services[h.ip]!==undefined)h.services=r.services[h.ip];render(current);say(t('nmap_done')(Object.keys(r.services).length))},end)}
   catch(e){end();say(e)}};
 document.getElementById('nmap-stop').onclick=()=>api('/api/stop').then(()=>say(t('abort'))).catch(e=>say(e));
+async function loadSubnets(){try{const d=await api('/api/subnets');const dl=document.getElementById('subnets');dl.innerHTML=d.candidates.map(c=>`<option value="${c.cidr}">${c.source}</option>`).join('');
+  if(d.candidates.length){document.getElementById('subnet').value=d.candidates[0].cidr;document.getElementById('netv').textContent=t('detected')(d.iface,d.ip,d.candidates.map(c=>c.cidr+' ['+c.source+']').join(' · '))}}catch(e){}}
 run.onclick=async()=>{if(run.disabled)return;run.disabled=true;sel.clear();out.innerHTML="";sum.innerHTML="";
-  try{await api('/api/scan',{mode:mode.value});say(t('scanning')+' '+mode.value.toUpperCase()+' ...');
-    watch(r=>{document.getElementById('netv').textContent=r.network;render(r);say(t('online_msg')(r.hosts.length,r.hosts.filter(h=>h.new).length,r.run_id)+(r.warning?' · '+r.warning:''));showRuns()},()=>{run.disabled=false})}
+  try{await api('/api/scan',{mode:mode.value,net:document.getElementById('subnet').value});say(t('scanning')+' '+mode.value.toUpperCase()+' ...');
+    watch(r=>{document.getElementById('subnet').value=r.network;render(r);say(t('online_msg')(r.hosts.length,r.hosts.filter(h=>h.new).length,r.run_id)+(r.warning?' · '+r.warning:''));showRuns()},()=>{run.disabled=false})}
   catch(e){run.disabled=false;say(e)}};
 function histTable(rows,cols,onclick){const h=document.getElementById('hist');
   h.innerHTML='<table><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr>'+rows.map(r=>'<tr class="'+(onclick?'click':'')+'" data-id="'+esc(r.id)+'">'+cols.map(c=>'<td class="'+(c[2]||'')+'">'+(c[1](r))+'</td>').join('')+'</tr>').join('')+'</table>';
@@ -245,7 +248,7 @@ async function loadRun(id){try{const d=await api('/api/run_get',{id});render(d);
 document.getElementById('hist-runs').onclick=showRuns;document.getElementById('hist-dev').onclick=showDev;
 async function exportAs(fmt,a){const r=await fetch('/api/export?format='+fmt,{method:'POST',headers:{'X-Token':TOKEN},body:'{}'});a.href=URL.createObjectURL(await r.blob())}
 for(const [id,fmt] of [['exp-csv','csv'],['exp-json','json']])document.getElementById(id).addEventListener('click',async function(e){if(this.dataset.ready){this.dataset.ready='';return}e.preventDefault();await exportAs(fmt,this);this.dataset.ready='1';this.click()});
-applyLang();
+applyLang();loadSubnets();
 const t0=Date.now(),clk=document.getElementById('vhsclock');setInterval(()=>{const d=Math.floor((Date.now()-t0)/1000),h=Math.floor(d/3600),m=String(Math.floor(d%3600/60)).padStart(2,'0'),s=String(d%60).padStart(2,'0');clk.textContent=`SP ${h}:${m}:${s}`},1000);
 </script></body></html>
 """
@@ -260,12 +263,12 @@ class Job:
         self.running = False; self.done = False; self.error = ""; self.log = ""; self.result = None
         self.cancel = False; self.proc = None
 
-    def start(self, mode, store):
+    def start(self, mode, store, net_override=None):
         with self.lock:
             if self.running:
                 raise ValueError("scan already running")
             self.reset(); self.running = True
-        threading.Thread(target=self._work, args=(mode, store), daemon=True).start()
+        threading.Thread(target=self._work, args=(mode, store, net_override), daemon=True).start()
 
     def start_nmap(self, ips, run_id, store, sudo_pw=None):
         with self.lock:
@@ -306,9 +309,17 @@ class Job:
         if p and p.poll() is None:
             p.terminate()
 
-    def _work(self, mode, store):
+    def _work(self, mode, store, net_override=None):
         try:
             iface, my_ip, net = wifiscan.local_network()
+            if net_override:
+                n = ipaddress.ip_network(net_override, strict=False)
+                if n.prefixlen < 22 or n.prefixlen > 30:
+                    raise ValueError("subnet must be between /22 and /30")
+                if not n.is_private and ipaddress.ip_address(my_ip) not in n:
+                    raise ValueError("only private ranges or your own subnet can be scanned")
+                net = n
+            self.log = "SUBNET %s" % net
             warn = wifiscan.vpn_warning(iface, net)
             self.log = (warn + " · " if warn else "") + "PING SWEEP %s" % net
             hosts = list(wifiscan.discover(net).values())
@@ -381,8 +392,11 @@ class Handler(BaseHTTPRequestHandler):
                 mode = req.get("mode", "discover")
                 if mode not in ("discover", "ports", "nmap"):
                     raise ValueError("bad mode")
-                job.start(mode, st)
+                job.start(mode, st, (req.get("net") or "").strip() or None)
                 out = {"started": True}
+            elif path == "/api/subnets":
+                iface, my_ip, net = wifiscan.local_network()
+                out = {"iface": iface, "ip": my_ip, "candidates": wifiscan.detect_subnets(iface, my_ip)}
             elif path == "/api/nmap":
                 ips = [str(ip) for ip in req.get("ips", [])][:64]
                 import ipaddress

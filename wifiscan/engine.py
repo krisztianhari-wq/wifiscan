@@ -61,6 +61,72 @@ def iface_network(iface):
     return ip, ipaddress.ip_network(f"{ip}/{prefix}", strict=False)
 
 
+def _run(cmd):
+    try:
+        return subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL, timeout=5)
+    except Exception:
+        return ""
+
+
+def detect_subnets(iface, ip):
+    """Körülnéz, mi lehet a valódi alhálózat. Források: interfész netmaszk, DHCP csomag, routing tábla,
+    már ismert ARP-bejegyzések és a gateway. -> [{"cidr","source"}] egyezés szerint rendezve, legjobb elöl."""
+    cands = {}
+    def add(net, src):
+        try:
+            n = ipaddress.ip_network(net, strict=False)
+        except ValueError:
+            return
+        if n.prefixlen < 16 or n.prefixlen > 30 or not n.is_private and n.prefixlen < 24:
+            return
+        if n.prefixlen < 22:                            # túl nagy: a saját IP körüli /22
+            n = ipaddress.ip_network(f"{ip}/22", strict=False); src += " (capped /22)"
+        cands.setdefault(str(n), set()).add(src)
+    r = iface_network(iface)
+    if r:
+        add(str(r[1]), "interface")
+    gw = None
+    if sys.platform == "darwin":
+        pk = _run(["ipconfig", "getpacket", iface])
+        m = re.search(r"subnet_mask \(ip\): (\d+\.\d+\.\d+\.\d+)", pk)
+        if m:
+            add(f"{ip}/{m.group(1)}", "dhcp")
+        g = re.search(r"router \(ip_mult\): \{(\d+\.\d+\.\d+\.\d+)", pk)
+        gw = g.group(1) if g else None
+        for line in _run(["netstat", "-rn", "-f", "inet"]).splitlines():
+            cols = line.split()
+            if len(cols) >= 4 and cols[-1] == iface and "/" in cols[0] and not cols[0].startswith(("224", "239", "169.254")):
+                net = cols[0]
+                a, _, pl = net.partition("/")
+                a = ".".join((a.split(".") + ["0", "0", "0"])[:4])   # "192.168.20/24" -> "192.168.20.0/24"
+                add(f"{a}/{pl}", "route")
+        if not gw:
+            g = re.search(r"gateway:\s*(\d+\.\d+\.\d+\.\d+)", _run(["route", "-n", "get", "default"]))
+            gw = g.group(1) if g else None
+    else:
+        for line in _run(["ip", "-4", "route", "show", "dev", iface]).splitlines():
+            m = re.match(r"(\d+\.\d+\.\d+\.\d+/\d+)", line)
+            if m:
+                add(m.group(1), "route")
+        g = re.search(r"default via (\d+\.\d+\.\d+\.\d+)", _run(["ip", "route", "show", "default"]))
+        gw = g.group(1) if g else None
+    # ARP-ban látott címek + gateway: ha kilógnak az eddigi jelöltekből, a lefedő szupernet is jelölt
+    seen = [gw] if gw else []
+    for m in re.finditer(r"\((\d+\.\d+\.\d+\.\d+)\) at ([0-9a-f:]+) on " + re.escape(iface), _run(["arp", "-an"])):
+        seen.append(m.group(1))
+    base = ipaddress.ip_network(f"{ip}/24", strict=False)
+    outside = [a for a in seen if ipaddress.ip_address(a).is_private and ipaddress.ip_address(a) not in base
+               and not a.startswith("169.254")]
+    if outside:
+        n = base
+        while n.prefixlen > 22 and not all(ipaddress.ip_address(a) in n for a in outside):
+            n = n.supernet()
+        if all(ipaddress.ip_address(a) in n for a in outside):
+            add(str(n), "arp/gateway")
+    ranked = sorted(cands.items(), key=lambda kv: (-len(kv[1]), int(kv[0].split("/")[1])))
+    return [{"cidr": c, "source": ", ".join(sorted(srcs))} for c, srcs in ranked]
+
+
 def local_network():
     """Aktív interfész, saját IP és alhálózat. Sorrend: default route interfésze, majd en0/en1/wlan0/eth0."""
     cands = [i for i in [default_interface()] if i] + ["en0", "en1", "wlan0", "eth0"]
