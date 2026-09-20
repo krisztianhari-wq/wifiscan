@@ -127,6 +127,49 @@ def detect_subnets(iface, ip):
     return [{"cidr": c, "source": ", ".join(sorted(srcs))} for c, srcs in ranked]
 
 
+def current_ssid(iface):
+    """WiFi név, ha a rendszer kiadja (macOS 14+ helymeghatározási engedély nélkül '<redacted>')."""
+    if sys.platform == "darwin":
+        out = _run(["networksetup", "-getairportnetwork", iface])
+        m = re.search(r"Current Wi-Fi Network:\s*(.+)", out)
+        if m and "redacted" not in m.group(1):
+            return m.group(1).strip()
+        out = _run(["ipconfig", "getsummary", iface])
+        m = re.search(r"^\s*SSID\s*:\s*(.+)$", out, re.M)
+        if m and "redacted" not in m.group(1):
+            return m.group(1).strip()
+        return ""
+    out = _run(["iwgetid", "-r"]) or _run(["nmcli", "-t", "-f", "active,ssid", "dev", "wifi"])
+    for line in out.splitlines():
+        if line.startswith("yes:"):
+            return line[4:].strip()
+    return out.strip() if "\n" not in out.strip() else ""
+
+
+def network_identity(iface, net, oui=None):
+    """A hely ujjlenyomata: gateway MAC (stabil egy routerre), SSID ha van, gyártó, alhálózat.
+    key: 'gw:<mac>' vagy tartalék 'net:<cidr>'."""
+    gw_ip = ""
+    if sys.platform == "darwin":
+        m = re.search(r"gateway:\s*(\d+\.\d+\.\d+\.\d+)", _run(["route", "-n", "get", "default"]))
+    else:
+        m = re.search(r"default via (\d+\.\d+\.\d+\.\d+)", _run(["ip", "route", "show", "default"]))
+    if m:
+        gw_ip = m.group(1)
+    gw_mac = ""
+    if gw_ip:
+        _ping(gw_ip, 500)
+        m = re.search(r"\(" + re.escape(gw_ip) + r"\) at ([0-9a-f:]{11,17})", _run(["arp", "-an"]))
+        if m:
+            gw_mac = ":".join(p.zfill(2) for p in m.group(1).split(":")).upper()
+    ssid = current_ssid(iface)
+    gw_vendor = vendor(gw_mac, oui or {}) if gw_mac else ""
+    key = f"gw:{gw_mac}" if gw_mac else f"net:{net}"
+    label = ssid or (f"{gw_vendor} {net}" if gw_vendor and gw_vendor != "unknown" else str(net))
+    return {"key": key, "ssid": ssid, "gateway_ip": gw_ip, "gateway_mac": gw_mac,
+            "gateway_vendor": gw_vendor, "subnet": str(net), "default_label": label}
+
+
 def local_network():
     """Aktív interfész, saját IP és alhálózat. Sorrend: default route interfésze, majd en0/en1/wlan0/eth0."""
     cands = [i for i in [default_interface()] if i] + ["en0", "en1", "wlan0", "eth0"]

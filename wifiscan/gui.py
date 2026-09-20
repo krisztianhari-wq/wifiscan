@@ -10,246 +10,282 @@ from . import engine as wifiscan, __version__ as VERSION
 from .store import Store
 TOKEN = secrets.token_urlsafe(24)
 
-HTML = r"""<!DOCTYPE html>
+HTML = r"""
+<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WIFISCAN</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0b0418;--bg2:#160a2e;--panel:rgba(20,8,48,.78);--pink:#ff2bd6;--hot:#ff3f8e;--cyan:#19f0ff;--violet:#8a5cff;
- --sun:#ffb347;--chrome1:#f6f9ff;--chrome2:#8fb4d9;--chrome3:#2c4a78;--text:#e9e2ff;--dim:#9a8fc4;--red:#ff4d4d;--lime:#7dff6a;
- --mono:"Share Tech Mono","Menlo","Consolas",monospace;--head:"Orbitron","Impact",sans-serif}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
+:root{--bg:#FAF7F7;--surface:rgba(255,255,255,.62);--surface-2:rgba(245,240,242,.7);--solid:#FFFFFF;--line:#E8DDE2;--line-strong:#D4C2CB;
+ --ink:#2B1F26;--ink-2:#6E5B65;--ink-3:#8C7A85;--brand:#614051;--brand-soft:#F0A3AF;--mag:#7C5A6D;--mag-soft:#E4D5DC;
+ --good:#14733F;--good-bg:#E4F1EA;--bad:#B93B31;--bad-bg:#F8E5E3;--warn:#8A5A12;--warn-bg:#F7EBD7;--info:#4a3aa7;--info-bg:#ECE8FA;
+ --shadow:0 1px 2px rgba(43,31,38,.05),0 8px 24px -16px rgba(43,31,38,.28);
+ --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono","Menlo",monospace;--head:"Fredoka",var(--sans);--r:14px}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#161114;--surface:rgba(39,31,39,.6);--surface-2:rgba(39,31,39,.8);--solid:#271F27;--line:#382C35;--line-strong:#4E3E49;
+ --ink:#F8F1F4;--ink-2:#BFACB6;--ink-3:#9B8891;--brand:#F0A3AF;--brand-soft:#614051;--mag:#C09AAE;--mag-soft:#3B2E37;
+ --good:#5FC38E;--good-bg:#17301F;--bad:#E97F76;--bad-bg:#331C1A;--warn:#E8B86D;--warn-bg:#33291A;--info:#9085e9;--info-bg:#26213B;
+ --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -16px rgba(0,0,0,.8)}}
+:root[data-theme=dark]{--bg:#161114;--surface:rgba(39,31,39,.6);--surface-2:rgba(39,31,39,.8);--solid:#271F27;--line:#382C35;--line-strong:#4E3E49;
+ --ink:#F8F1F4;--ink-2:#BFACB6;--ink-3:#9B8891;--brand:#F0A3AF;--brand-soft:#614051;--mag:#C09AAE;--mag-soft:#3B2E37;
+ --good:#5FC38E;--good-bg:#17301F;--bad:#E97F76;--bad-bg:#331C1A;--warn:#E8B86D;--warn-bg:#33291A;--info:#9085e9;--info-bg:#26213B;
+ --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -16px rgba(0,0,0,.8)}
+*{box-sizing:border-box}[hidden]{display:none!important}
 html,body{margin:0;min-height:100%}
-body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:14px;line-height:1.45;letter-spacing:.03em;overflow-x:hidden;
- background-image:radial-gradient(ellipse at 50% -20%,#3a1a6e 0%,transparent 60%),linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%)}
-/* VHS: scanlines + színcsúszás + tracking csík */
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9;
- background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 1px,transparent 1px 3px)}
-body::after{content:"";position:fixed;left:0;right:0;height:90px;z-index:10;pointer-events:none;opacity:.35;
- background:linear-gradient(180deg,transparent,rgba(255,255,255,.12) 45%,rgba(25,240,255,.18) 50%,rgba(255,43,214,.18) 55%,transparent);
- animation:track 9s linear infinite}
-@keyframes track{0%{top:-120px}100%{top:110%}}
-/* laser grid horizont */
-.grid{position:fixed;left:-20%;right:-20%;bottom:0;height:42vh;z-index:0;pointer-events:none;transform:perspective(420px) rotateX(62deg);transform-origin:top;
- background:linear-gradient(90deg,rgba(255,43,214,.55) 1px,transparent 1px) 0 0/60px 60px,linear-gradient(0deg,rgba(255,43,214,.55) 1px,transparent 1px) 0 0/60px 60px;
- mask-image:linear-gradient(180deg,transparent,#000 40%);-webkit-mask-image:linear-gradient(180deg,transparent,#000 40%);animation:grid 1.2s linear infinite}
-@keyframes grid{to{background-position:0 60px,0 60px}}
-.sunset{position:fixed;left:50%;bottom:26vh;width:340px;height:340px;margin-left:-170px;border-radius:50%;z-index:0;pointer-events:none;opacity:.55;
- background:linear-gradient(180deg,#ffd166 0%,#ff7a59 45%,#ff2bd6 100%);
- mask-image:repeating-linear-gradient(180deg,#000 0 14px,transparent 14px 22px),linear-gradient(#000,#000);mask-composite:intersect;
- -webkit-mask-image:repeating-linear-gradient(180deg,#000 0 14px,transparent 14px 22px);filter:blur(.5px)}
-.crt{position:relative;z-index:1;min-height:100%;padding:18px 16px 60px;max-width:1180px;margin:0 auto;animation:flick 7s infinite}
-@keyframes flick{0%,96%,100%{opacity:1}97%{opacity:.9;transform:translateX(1px)}98%{opacity:.96}}
-/* VHS OSD sáv */
-.bar{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;border:1px solid rgba(25,240,255,.35);
- background:rgba(0,0,0,.35);font-size:12px;color:var(--cyan);text-shadow:0 0 6px var(--cyan)}
-.bar .left{display:flex;align-items:center;gap:18px}
-.sys{letter-spacing:.12em}
-.cls{color:var(--red);text-shadow:0 0 8px var(--red);letter-spacing:.14em}
-.cls::before{content:"● ";animation:blink 1.2s steps(1) infinite}
-/* Króm cím */
-h1{margin:26px 0 2px;font-family:var(--head);font-weight:900;font-size:clamp(34px,7vw,64px);line-height:1;letter-spacing:.02em;font-style:italic;text-transform:uppercase;
- background:linear-gradient(180deg,var(--chrome1) 0%,var(--chrome1) 38%,var(--chrome3) 50%,var(--chrome2) 62%,var(--chrome1) 100%);
- -webkit-background-clip:text;background-clip:text;color:transparent;
- filter:drop-shadow(0 0 2px var(--pink)) drop-shadow(0 0 14px rgba(255,43,214,.55)) drop-shadow(4px 4px 0 #3a0a5e)}
-h1 small{display:block;font-family:var(--mono);font-style:normal;font-weight:normal;font-size:13px;letter-spacing:.35em;margin-top:8px;
- background:none;color:var(--cyan);-webkit-text-fill-color:var(--cyan);filter:none;text-shadow:0 0 8px var(--cyan)}
-.sub{color:var(--dim);font-size:12px;margin:10px 0 20px;text-transform:uppercase;letter-spacing:.1em}
-/* Panelek */
-.panel{position:relative;border:1px solid var(--pink);padding:16px 14px 14px;margin-bottom:18px;background:var(--panel);
- box-shadow:0 0 18px rgba(255,43,214,.25),inset 0 0 30px rgba(138,92,255,.08);backdrop-filter:blur(2px)}
-.panel::before{content:"";position:absolute;inset:-1px;border:1px solid var(--cyan);pointer-events:none;transform:translate(3px,3px);opacity:.7}
-.panel h2{margin:-26px 0 12px;display:inline-block;padding:2px 10px;font-family:var(--head);font-weight:700;font-size:12px;letter-spacing:.25em;text-transform:uppercase;
- color:#fff;background:linear-gradient(90deg,var(--pink),var(--violet));box-shadow:0 0 10px var(--pink)}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+ background-image:radial-gradient(700px 420px at 0% -10%,color-mix(in srgb,var(--brand-soft) 45%,transparent),transparent 60%),radial-gradient(600px 420px at 100% 0%,color-mix(in srgb,var(--mag-soft) 70%,transparent),transparent 60%);background-attachment:fixed}
+a{color:var(--brand);text-decoration:none}
+h1,h2,h3{margin:0;text-wrap:balance}
+.topbar{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--solid) 70%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1240px;margin:0 auto;padding:10px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:6px}
+.brand .dot{width:32px;height:32px;border-radius:10px;background:var(--brand);color:var(--bg);display:grid;place-items:center;font-family:var(--head);font-weight:600;font-size:16px}
+.brand b{display:block;font-family:var(--head);font-weight:600;font-size:16px;letter-spacing:.01em;line-height:1.1}.brand span{display:block;font-size:11px;color:var(--ink-3)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav a{padding:6px 12px;border-radius:999px;color:var(--ink-2);font-weight:500;font-size:13px;border:1px solid transparent}
+nav a:hover{background:var(--surface-2)}nav a.on{background:var(--mag-soft);color:var(--brand);border-color:var(--line)}
+nav a i{display:none}
+.spacer{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+main{max-width:1240px;margin:0 auto;padding:26px 24px 60px;width:100%}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-family:var(--head);font-weight:600;font-size:30px;letter-spacing:.005em;color:var(--ink)}
+.sub{color:var(--ink-2);margin-top:2px}
+.loc{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);backdrop-filter:blur(10px);flex-wrap:wrap}
+.loc .ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--mag-soft);color:var(--brand)}
+.loc input{font:inherit;font-weight:600;border:0;background:transparent;color:var(--ink);min-width:120px;outline:none;border-bottom:1px dashed var(--line-strong)}
+.loc small{color:var(--ink-3);font-family:var(--mono);font-size:11px}
+.badge{padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid transparent;white-space:nowrap}
+.b-new{background:var(--bad-bg);color:var(--bad)}.b-known,.b-trusted{background:var(--good-bg);color:var(--good)}.b-unk{background:var(--warn-bg);color:var(--warn)}.b-seen{background:var(--info-bg);color:var(--info)}.b-me{background:var(--surface-2);color:var(--ink-3);border-color:var(--line)}
+.grid{display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:15px 16px 16px;box-shadow:var(--shadow);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);min-width:0}
+.card h2{font-family:var(--head);font-weight:600;font-size:16px;color:var(--ink);margin-bottom:12px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-select,input[type=text],input[type=password]{background:#08031a;color:var(--cyan);border:1px solid var(--cyan);padding:9px 12px;font:inherit;outline:none;
- box-shadow:inset 0 0 12px rgba(25,240,255,.12)}
-select{flex:0 0 280px;text-transform:uppercase}
-input::placeholder{color:var(--dim)}
-input:focus,select:focus{box-shadow:0 0 0 1px var(--pink),0 0 14px var(--pink)}
-button{background:linear-gradient(180deg,var(--hot),var(--pink));color:#fff;border:0;padding:9px 22px;font:inherit;font-family:var(--head);font-weight:700;font-size:12px;
- letter-spacing:.2em;text-transform:uppercase;cursor:pointer;box-shadow:0 0 12px rgba(255,43,214,.6),inset 0 1px 0 rgba(255,255,255,.35)}
-button:hover{filter:brightness(1.15);box-shadow:0 0 22px var(--pink)}
-button:disabled{filter:grayscale(1) brightness(.6);cursor:wait;box-shadow:none}
-.ghost,a.btn{background:transparent;color:var(--cyan);border:1px solid var(--cyan);padding:6px 14px;font:inherit;font-family:var(--head);font-size:11px;letter-spacing:.18em;
- text-transform:uppercase;text-decoration:none;cursor:pointer;box-shadow:0 0 8px rgba(25,240,255,.3)}
-.ghost:hover,a.btn:hover{background:rgba(25,240,255,.12);box-shadow:0 0 16px var(--cyan)}
-.ghost.sm{padding:2px 8px;font-size:10px}
-input[type=checkbox]{accent-color:var(--pink);width:15px;height:15px;cursor:pointer}
-.selbar{margin-top:10px}
-tr.click{cursor:pointer}tr.click:hover td{background:rgba(255,43,214,.08)}
-.hint{color:var(--dim);font-size:11px;margin-top:8px}
-#log{white-space:pre-wrap;min-height:60px;color:var(--lime);text-shadow:0 0 6px rgba(125,255,106,.7);font-size:15px}
-.cursor::after{content:"█";animation:blink 1s steps(1) infinite;margin-left:2px}
-@keyframes blink{50%{opacity:0}}
-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}
-td,th{padding:5px 8px;text-align:left;vertical-align:top;border-bottom:1px solid rgba(138,92,255,.3)}
-th{color:var(--pink);font-family:var(--head);font-weight:500;font-size:10px;letter-spacing:.2em;text-transform:uppercase;border-bottom:1px solid var(--pink)}
-td.loc,td.note{color:var(--dim)}
-td.mac{color:var(--cyan);white-space:nowrap}
-td.lbl input{width:100%;padding:3px 6px;font-size:12px}
-.v{display:inline-block;padding:1px 8px;border:1px solid;white-space:nowrap;font-size:11px;letter-spacing:.1em}
-.v-NEW{color:#fff;background:var(--red);border-color:var(--red);box-shadow:0 0 10px var(--red);animation:alert 1.2s steps(1) infinite}
-@keyframes alert{50%{background:transparent;color:var(--red)}}
-.v-UNKNOWN{color:var(--sun);border-color:var(--sun);text-shadow:0 0 6px var(--sun)}
-.v-TRUSTED{color:var(--lime);border-color:var(--lime);text-shadow:0 0 6px var(--lime)}
-.v-SEEN{color:var(--cyan);border-color:var(--cyan)}
-.v-ME{color:var(--dim);border-color:var(--dim)}
-.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
-.tile{border:1px solid var(--violet);padding:10px;text-align:center;background:rgba(0,0,0,.3)}
-.tile b{display:block;font-family:var(--head);font-size:30px;font-weight:900;color:#fff;text-shadow:0 0 10px var(--cyan),0 0 2px #fff}
-.tile span{font-size:10px;color:var(--dim);letter-spacing:.2em;text-transform:uppercase}
-.ports{color:var(--dim);font-size:11px}
-.ports b{color:var(--cyan);font-weight:normal}
-pre.svc{margin:4px 0 0;font:inherit;font-size:11px;color:var(--lime);white-space:pre-wrap}
-.foot{margin-top:30px;height:4px;background:linear-gradient(90deg,var(--cyan),var(--pink),var(--sun))}
-.footnote{color:var(--dim);font-size:11px;margin-top:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;letter-spacing:.1em;text-transform:uppercase}
-a{color:var(--cyan)}
-@media (max-width:600px){.bar{flex-direction:column;align-items:flex-start;gap:6px}select{flex:1 1 100%}.sunset{display:none}}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{background:transparent;color:var(--ink-2);box-shadow:none;padding:6px 14px;border-radius:999px;font-weight:600;font-size:13px}
+.seg button.on{background:var(--solid);color:var(--brand);box-shadow:var(--shadow)}
+input[type=text],input[type=password],select{font:inherit;padding:8px 12px;border-radius:10px;border:1px solid var(--line-strong);background:var(--solid);color:var(--ink);outline:none}
+input:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 18%,transparent)}
+input.mono{font-family:var(--mono);font-size:13px}
+input::placeholder{color:var(--ink-3)}
+button{font:inherit;font-weight:600;border:1px solid transparent;border-radius:10px;padding:9px 16px;cursor:pointer;background:var(--brand);color:var(--bg);transition:.15s}
+button.primary{background:var(--brand);color:var(--bg)}
+button.primary:hover{filter:brightness(1.08)}
+button.ghost{background:var(--solid);color:var(--ink);border-color:var(--line-strong)}
+button.ghost:hover{background:var(--surface-2)}
+button.danger{background:var(--bad-bg);color:var(--bad)}
+button.sm{padding:5px 10px;font-size:12px;border-radius:9px}
+button:disabled{opacity:.5;cursor:wait}
+.hint{color:var(--ink-3);font-size:12px;margin-top:10px}
+#log{font-family:var(--mono);font-size:12.5px;color:var(--ink);padding:10px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);min-height:40px;white-space:pre-wrap}
+#log::before{content:"▸ ";color:var(--brand)}
+.warn{margin-top:10px;padding:10px 14px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-size:12.5px;border:1px solid var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:6px}
+.kpi{padding:12px 14px;border-radius:var(--r);background:var(--surface-2);border:1px solid var(--line)}
+.kpi b{display:block;font-family:var(--head);font-size:28px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}.kpi span{font-size:12px;color:var(--ink-2)}
+.kpi.new b{color:var(--bad)}.kpi.unk b{color:var(--warn)}.kpi.trusted b{color:var(--good)}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+th{text-align:left;font-size:11px;color:var(--ink-3);font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer}tr.click:hover td{background:color-mix(in srgb,var(--mag-soft) 50%,transparent)}
+td.mono{font-family:var(--mono);font-size:12px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+td.strong{font-weight:600;min-width:120px}
+td.lbl input{width:100%;padding:5px 9px;font-size:12.5px;border-radius:8px}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--brand);cursor:pointer}
+.sub-row td{padding-top:0;color:var(--ink-2);font-size:12px}
+.sub-row b{color:var(--ink);font-weight:500;font-family:var(--mono);font-size:11.5px}
+pre.svc{margin:6px 0 0;font:12px var(--mono);color:var(--ink);white-space:pre-wrap;padding:10px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 12px;border-radius:var(--r);background:var(--surface-2);border:1px solid var(--line);margin:12px 0}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.tabs button{background:transparent;color:var(--ink-2);padding:6px 12px;border-radius:999px}.tabs button.on{background:var(--mag-soft);color:var(--brand)}
+.foot{color:var(--ink-3);font-size:11.5px;margin-top:26px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:980px){.two{grid-template-columns:1fr}}
+@media (max-width:700px){.topbar-in{padding:10px 14px}main{padding:18px 14px 40px}h1{font-size:24px}}
 </style></head>
-<body><div class="sunset"></div><div class="grid"></div><div class="crt">
-<div class="bar">
-  <div class="left"><span class="sys">▶ PLAY</span><span class="sys" id="vhsclock">SP 0:00:00</span><span class="sys">WIFISCAN v__VERSION__</span></div>
-  <div class="left"><button class="ghost sm" id="lang" type="button" title="Language / Nyelv">HU</button><span class="cls">REC · MIAMI 1985</span></div>
-</div>
-<h1>Hackerman<small data-i18n="tagline">Network Inventory System · Power Glove Edition</small></h1>
-<div class="sub" data-i18n="sub"></div>
-
-<div class="panel">
-  <h2 data-i18n="request">Request</h2>
-  <div class="row">
-    <select id="mode">
-      <option value="discover" data-i18n="m_discover"></option>
-      <option value="ports" data-i18n="m_ports"></option>
-      <option value="nmap" data-i18n="m_nmap"></option>
-    </select>
-    <input id="subnet" type="text" list="subnets" value="__NET__" style="flex:0 0 190px" title="subnet (CIDR)"><datalist id="subnets"></datalist>
-    <span class="sys" id="net"><span id="netv" class="hint" style="margin:0"></span> · nmap: __NMAP__</span>
-    <button id="run" type="button">Hack time</button>
+<body>
+<header class="topbar"><div class="topbar-in">
+  <div class="brand"><div class="dot">H</div><div><b>wifiscan</b><span>Hackerman edition · v__VERSION__</span></div></div>
+  <nav>
+    <a href="#scan" class="on"><i></i><span data-i18n="nav_scan">Scan</span></a>
+    <a href="#devices"><i></i><span data-i18n="nav_devices">Devices</span></a>
+    <a href="#locations"><i></i><span data-i18n="nav_locations">Locations</span></a>
+    <a href="#runs"><i></i><span data-i18n="nav_runs">Runs</span></a>
+  </nav>
+  <div class="spacer"></div>
+  <span class="pill" id="nmapstate">nmap: __NMAP__</span><button class="ghost sm" id="lang" type="button">HU</button><button class="ghost sm" id="theme" type="button" title="theme">◐</button>
+</div></header>
+<main>
+  <div class="top">
+    <div><h1 data-i18n="title">Network inventory</h1><div class="sub" data-i18n="sub"></div></div>
+    <div class="loc" id="loc"><div class="ico">◎</div><div><input id="loc-label" type="text" data-i18n-ph="loc_ph"><div><small id="loc-meta">—</small></div></div><span class="badge" id="loc-badge" hidden></span></div>
   </div>
-  <div class="hint" data-i18n="hint_req"></div>
-</div>
 
-<div class="panel">
-  <h2 data-i18n="response">Response</h2>
-  <div id="log" class="cursor">HACKERMAN: WAITING FOR INPUT</div>
-  <div id="summary"></div>
-  <div class="row selbar" id="selbar" hidden><button id="nmap-sel" type="button" data-i18n="nmap_sel"></button><button id="sel-all" class="ghost" type="button" data-i18n="all"></button><button id="sel-none" class="ghost" type="button" data-i18n="none"></button><button id="nmap-stop" class="ghost" type="button" hidden style="border-color:var(--red);color:var(--red)">Stop</button><input type="password" id="sudo" data-i18n-ph="sudo_ph" autocomplete="off" style="flex:1;min-width:260px"><span class="hint" id="sel-count" style="margin:0"></span></div>
-  <div class="hint" id="sudo-hint" hidden data-i18n="sudo_hint"></div>
-  <div id="out"></div>
-</div>
-<div class="panel">
-  <h2 data-i18n="archive">Archive</h2><div class="hint" style="margin:-6px 0 10px"><span data-i18n="saved_to"></span>: <span id="dbpath">__DBPATH__</span></div>
-  <div class="row" style="margin-bottom:8px">
-    <button id="hist-runs" class="ghost" data-i18n="runs"></button>
-    <button id="hist-dev" class="ghost" data-i18n="devices"></button>
-    <a id="exp-csv" class="ghost btn" href="#" download="wifiscan-devices.csv">Export CSV</a>
-    <a id="exp-json" class="ghost btn" href="#" download="wifiscan-devices.json">Export JSON</a>
+  <div class="grid">
+  <section class="card" id="scan">
+    <h2 data-i18n="request">Scan</h2>
+    <div class="row">
+      <div class="seg" id="mode"><button data-v="discover" class="on" data-i18n="m_discover"></button><button data-v="ports" data-i18n="m_ports"></button><button data-v="nmap" data-i18n="m_nmap"></button></div>
+      <input id="subnet" class="mono" type="text" list="subnets" value="__NET__" style="width:190px" title="subnet (CIDR)"><datalist id="subnets"></datalist>
+      <button id="run" class="primary" type="button" data-i18n="scan_btn">Scan network</button>
+    </div>
+    <div class="hint" id="netv"></div>
+    <div class="hint" data-i18n="hint_req"></div>
+    <div id="log" style="margin-top:14px"></div>
+    <div class="warn" id="warnbox" hidden></div>
+  </section>
+
+  <section class="card" id="devices">
+    <h2 data-i18n="response">Devices online</h2>
+    <div class="kpis" id="summary"></div>
+    <div class="toolbar" id="selbar" hidden>
+      <button id="nmap-sel" class="primary sm" type="button" data-i18n="nmap_sel"></button>
+      <button id="sel-all" class="ghost sm" type="button" data-i18n="all"></button>
+      <button id="sel-none" class="ghost sm" type="button" data-i18n="none"></button>
+      <button id="nmap-stop" class="danger sm" type="button" hidden>Stop</button>
+      <input type="password" id="sudo" data-i18n-ph="sudo_ph" autocomplete="off" style="flex:1;min-width:240px">
+      <span class="hint" id="sel-count" style="margin:0"></span>
+    </div>
+    <div class="hint" id="sudo-hint" hidden data-i18n="sudo_hint"></div>
+    <div id="out" style="overflow:auto"></div>
+  </section>
+
+  <div class="two">
+  <section class="card" id="locations">
+    <h2 data-i18n="nav_locations">Locations</h2>
+    <div id="nets" style="overflow:auto"></div>
+    <div class="hint" data-i18n="loc_hint"></div>
+  </section>
+  <section class="card" id="runs">
+    <h2 data-i18n="archive">Archive</h2>
+    <div class="tabs"><button id="hist-runs" class="on" data-i18n="runs"></button><button id="hist-dev" data-i18n="devices"></button>
+      <select id="netfilter" style="margin-left:auto"><option value="" data-i18n="all_locations"></option></select>
+      <a class="pill" id="exp-csv" href="#" download="wifiscan-devices.csv">CSV</a><a class="pill" id="exp-json" href="#" download="wifiscan-devices.json">JSON</a></div>
+    <div id="hist" style="overflow:auto"></div>
+    <div class="hint"><span data-i18n="saved_to"></span>: <span class="mono" id="dbpath">__DBPATH__</span></div>
+  </section>
   </div>
-  <div id="hist"></div>
-</div>
-<div class="foot"></div>
-<div class="footnote"><span>sadrobot · Krisz · Home Lab · "I'm gonna hack time"</span><span>wifiscan __VERSION__ · python stdlib + nmap · E=mc³</span></div>
-</div>
+  </div>
+  <div class="foot"><span>sadrobot · Krisz · Home Lab</span><span>wifiscan __VERSION__ · python stdlib + nmap · "I'm gonna hack time"</span></div>
+</main>
 <script>
 const TOKEN="__TOKEN__";
 const T={
-en:{tagline:"Network Inventory System · Power Glove Edition",sub:"Who is on the WiFi · vendor from MAC · device type · running services (nmap) · new device alert",
- request:"Request",response:"Response",archive:"Archive",network:"network",m_discover:"DISCOVER · who is online (ARP)",m_ports:"PORTS · + quick port scan",m_nmap:"NMAP · + service detection (slow)",
- hint_req:"Server listens on 127.0.0.1 only. Run it on your own network only. Full NMAP mode runs -sV on everything; for targeted -O OS detection select IPs and enter the sudo password.",
- nmap_sel:"Nmap on selected",all:"All",none:"None",sudo_ph:"sudo password (optional, for -O OS detection)",
+en:{title:"Network inventory",sub:"Who is on the WiFi · vendor · device type · services · new devices per location",
+ nav_scan:"Scan",nav_devices:"Devices",nav_locations:"Locations",nav_runs:"Runs",request:"Scan",response:"Devices online",archive:"Archive",
+ m_discover:"Discover",m_ports:"Ports",m_nmap:"Nmap",scan_btn:"Scan network",
+ hint_req:"Local server on 127.0.0.1 only. Scan only networks you own. Discover = ARP + mDNS/SSDP; Ports adds a quick port check; Nmap runs -sV on everything (slow). For targeted -O OS detection select rows and enter the sudo password.",
+ nmap_sel:"Nmap on selected",all:"All",none:"None",sudo_ph:"sudo password (optional, -O OS detection)",
  sudo_hint:"The password goes only to the local server on 127.0.0.1, is passed to sudo via stdin, never stored or logged.",
- detected:(i,ip,c)=>`${i} ${ip} · detected: ${c}`,saved_to:"every run is saved to",runs:"Runs",devices:"Known devices",online:"devices online",
- th:["Status","IP","MAC","Vendor","Type","Name","Label","Action"],label_ph:"e.g. living room TV",trust:"Trust",untrust:"Untrust",ports:"ports",
- sel_n:n=>n+" selected",sel_hint:"select targets for nmap -sV",
- h_runs:["ID","Time","Mode","Network","Devices","New"],h_dev:["Status","MAC","Label","Vendor","Last IP","First seen","Last seen","Seen"],
- waiting:"WAITING FOR INPUT",scanning:"SCANNING",online_msg:(n,nw,id)=>`${n} DEVICES ONLINE · ${nw} NEW · RUN ${id} ARCHIVED`,recalled:(id,n)=>`RUN ${id} RECALLED FROM ARCHIVE · ${n} DEVICES`,
- label_stored:"LABEL STORED FOR",specify:"SPECIFY TARGET",nmap_on:(f,n)=>`NMAP ${f} ON ${n} TARGET(S) ...`,nmap_done:n=>`NMAP COMPLETE · ${n} TARGET(S)`,abort:"ABORT REQUESTED · WAITING FOR NMAP TO EXIT",fail:"UNABLE TO COMPLY",
- types:{}},
-hu:{tagline:"Hálózati eszközleltár · Power Glove kiadás",sub:"Ki van a WiFi-n · gyártó a MAC-ből · eszköztípus · futó szolgáltatások (nmap) · új eszköz riasztás",
- request:"Kérés",response:"Válasz",archive:"Archívum",network:"hálózat",m_discover:"DISCOVER · ki van fent (ARP)",m_ports:"PORTS · + gyors portscan",m_nmap:"NMAP · + szolgáltatás-felismerés (lassú)",
- hint_req:"A szerver csak 127.0.0.1-en hallgat. Csak a saját hálózatodon futtasd. A teljes NMAP mód -sV-t futtat mindenre; célzott -O OS-felismeréshez jelöld ki az IP-ket és add meg a sudo jelszót.",
- nmap_sel:"Nmap a kijelöltekre",all:"Mind",none:"Egyik sem",sudo_ph:"sudo jelszó (opcionális, -O OS-felismeréshez)",
+ saved_to:"every run is saved to",runs:"Runs",devices:"Known devices",online:"online",new_here:"new here",unknown:"unknown",trusted:"trusted",seen:"seen",
+ th:["Status","IP","MAC","Vendor","Type","Name","Label",""],label_ph:"e.g. living room TV",trust:"Trust",untrust:"Untrust",ports:"ports",
+ sel_n:n=>n+" selected",sel_hint:"select rows to run nmap -sV on them",
+ h_runs:["#","Time","Location","Mode","Devices","New"],h_dev:["Status","MAC","Label","Vendor","Type","Last IP","Locations","Last seen"],
+ h_net:["Location","Gateway","Subnet","Runs","Devices","Last seen"],all_locations:"All locations",loc_ph:"name this location",
+ loc_hint:"A location is identified by the router's MAC address (or the WiFi name when macOS lets us read it). Rename it here; NEW means first seen at this location.",
+ loc_new:"new location",loc_known:"known location",elsewhere:"seen elsewhere",
+ waiting:"ready",scanning:"scanning",online_msg:(n,nw,id)=>`${n} devices online · ${nw} new here · run #${id} archived`,recalled:(id,n)=>`run #${id} recalled · ${n} devices`,
+ label_stored:"label stored for",specify:"select at least one device",nmap_on:(f,n)=>`nmap ${f} running on ${n} target(s)…`,nmap_done:n=>`nmap complete · ${n} target(s)`,abort:"abort requested, waiting for nmap to exit",fail:"failed",
+ detected:(i,ip,c)=>`${i} ${ip} · detected subnets: ${c}`,types:{}},
+hu:{title:"Hálózati eszközleltár",sub:"Ki van a WiFi-n · gyártó · eszköztípus · szolgáltatások · új eszközök helyenként",
+ nav_scan:"Scan",nav_devices:"Eszközök",nav_locations:"Helyek",nav_runs:"Futások",request:"Scan",response:"Eszközök online",archive:"Archívum",
+ m_discover:"Felderítés",m_ports:"Portok",m_nmap:"Nmap",scan_btn:"Hálózat scan",
+ hint_req:"Helyi szerver csak 127.0.0.1-en. Csak saját hálózatot scannelj. Felderítés = ARP + mDNS/SSDP; Portok gyors portellenőrzést ad; Nmap mindenre -sV-t futtat (lassú). Célzott -O OS-felismeréshez jelölj ki sorokat és add meg a sudo jelszót.",
+ nmap_sel:"Nmap a kijelöltekre",all:"Mind",none:"Egyik sem",sudo_ph:"sudo jelszó (opcionális, -O OS-felismerés)",
  sudo_hint:"A jelszó csak a helyi szervernek megy 127.0.0.1-en, stdin-en adja át a sudo-nak, nem tárolódik és nem naplózódik.",
- detected:(i,ip,c)=>`${i} ${ip} · felismert: ${c}`,saved_to:"minden futás mentve",runs:"Futások",devices:"Ismert eszközök",online:"eszköz online",
- th:["Státusz","IP","MAC","Gyártó","Típus","Név","Címke","Ok"],label_ph:"pl. nappali TV",trust:"Trust",untrust:"Untrust",ports:"portok",
+ saved_to:"minden futás mentve",runs:"Futások",devices:"Ismert eszközök",online:"online",new_here:"új itt",unknown:"ismeretlen",trusted:"megbízható",seen:"látott",
+ th:["Státusz","IP","MAC","Gyártó","Típus","Név","Címke",""],label_ph:"pl. nappali TV",trust:"Trust",untrust:"Untrust",ports:"portok",
  sel_n:n=>n+" kijelölve",sel_hint:"jelöld ki, mire fusson nmap -sV",
- h_runs:["ID","Idő","Mód","Hálózat","Eszköz","Új"],h_dev:["Státusz","MAC","Címke","Gyártó","Utolsó IP","Először","Utoljára","Látva"],
- waiting:"VÁROM A PARANCSOT",scanning:"SCAN INDUL",online_msg:(n,nw,id)=>`${n} ESZKÖZ ONLINE · ${nw} ÚJ · FUTÁS ${id} ARCHIVÁLVA`,recalled:(id,n)=>`FUTÁS ${id} ELŐHÍVVA AZ ARCHÍVUMBÓL · ${n} ESZKÖZ`,
- label_stored:"CÍMKE MENTVE",specify:"ADJ MEG CÉLT",nmap_on:(f,n)=>`NMAP ${f} FUT ${n} CÉLON ...`,nmap_done:n=>`NMAP KÉSZ · ${n} CÉL`,abort:"MEGSZAKÍTÁS KÉRVE · VÁROM AZ NMAP KILÉPÉSÉT",fail:"NEM TELJESÍTHETŐ",
+ h_runs:["#","Idő","Hely","Mód","Eszköz","Új"],h_dev:["Státusz","MAC","Címke","Gyártó","Típus","Utolsó IP","Helyek","Utoljára"],
+ h_net:["Hely","Gateway","Alhálózat","Futás","Eszköz","Utoljára"],all_locations:"Minden hely",loc_ph:"nevezd el ezt a helyet",
+ loc_hint:"A helyet a router MAC-címe azonosítja (vagy a WiFi neve, ha a macOS kiadja). Itt átnevezheted; a NEW azt jelenti, hogy ezen a helyen először látott eszköz.",
+ loc_new:"új hely",loc_known:"ismert hely",elsewhere:"máshol már látott",
+ waiting:"kész",scanning:"scan fut",online_msg:(n,nw,id)=>`${n} eszköz online · ${nw} új itt · #${id} futás archiválva`,recalled:(id,n)=>`#${id} futás előhívva · ${n} eszköz`,
+ label_stored:"címke mentve",specify:"jelölj ki legalább egy eszközt",nmap_on:(f,n)=>`nmap ${f} fut ${n} célon…`,nmap_done:n=>`nmap kész · ${n} cél`,abort:"megszakítás kérve, várom az nmap kilépését",fail:"nem sikerült",
+ detected:(i,ip,c)=>`${i} ${ip} · felismert alhálózatok: ${c}`,
  types:{"this machine":"ez a gép","unknown":"ismeretlen","?":"?","(randomized MAC – phone/laptop private address)":"(randomizált MAC – telefon/laptop privát cím)","ABORTED":"MEGSZAKÍTVA","nmap not installed":"nmap nincs telepítve",
-  "UniFi router / AP / switch":"UniFi router / AP / switch","Router / AP":"Router / AP","Router":"Router","Amazon Echo / Fire TV":"Amazon Echo / Fire TV","Ring camera / doorbell":"Ring kamera / csengő","Roomba robot vacuum":"Roomba robotporszívó",
-  "Nintendo Switch":"Nintendo Switch","PlayStation":"PlayStation","Xbox / PC":"Xbox / PC","Gree air conditioner (WiFi module)":"Gree klíma (WiFi modul)","Tesla car":"Tesla autó","Shelly smart relay":"Shelly okosrelé",
-  "IoT (ESP32/ESP8266)":"IoT (ESP32/ESP8266)","IoT smart home":"IoT okosotthon","LG TV / appliance":"LG TV / készülék","Android TV box":"Android TV box","Denon / Marantz receiver":"Denon / Marantz erősítő","Sonos speaker":"Sonos hangszóró",
-  "Philips Hue / TV":"Philips Hue / TV","Google Nest / Chromecast":"Google Nest / Chromecast","Raspberry Pi":"Raspberry Pi","Synology NAS":"Synology NAS","QNAP NAS":"QNAP NAS","HP printer / PC":"HP nyomtató / PC","Canon printer":"Canon nyomtató",
-  "Brother printer":"Brother nyomtató","Epson printer":"Epson nyomtató","PC / laptop":"PC / laptop","Samsung phone / tablet / TV":"Samsung telefon / tablet / TV","Xiaomi phone / IoT":"Xiaomi telefon / IoT","Huawei phone":"Huawei telefon",
-  "OnePlus phone":"OnePlus telefon","Apple device":"Apple eszköz","iPhone":"iPhone","iPad":"iPad","MacBook":"MacBook","iMac":"iMac","Apple TV":"Apple TV","Google Pixel phone":"Google Pixel telefon","Samsung tablet":"Samsung tablet",
-  "Samsung phone":"Samsung telefon","TV":"TV","LG webOS TV":"LG webOS TV","Laptop":"Laptop","PC":"PC","Home theater receiver":"Házimozi erősítő","UniFi gateway":"UniFi gateway","UniFi AP":"UniFi AP","UniFi switch":"UniFi switch",
-  "Printer":"Nyomtató","NAS":"NAS","Amazon Echo":"Amazon Echo","Chromecast":"Chromecast","iPhone/iPad":"iPhone/iPad","Chromecast / Android TV":"Chromecast / Android TV","IP camera":"IP kamera","Apple TV / AirPlay":"Apple TV / AirPlay",
-  "IoT / smart home":"IoT / okosotthon","NAS / PC":"NAS / PC","Linux device / router":"Linux eszköz / router","Phone / laptop (private MAC)":"Telefon / laptop (privát MAC)",
-  "MikroTik router":"MikroTik router","IoT / WiFi module":"IoT / WiFi modul","IoT / embedded (Murata WiFi module)":"IoT / beágyazott (Murata WiFi modul)","Chromecast / Google":"Chromecast / Google","Roku":"Roku","unknown (no ARP reply)":"ismeretlen (nincs ARP-válasz)","Printer (LPD)":"Nyomtató (LPD)","RTSP (camera)":"RTSP (kamera)","IPP printer":"IPP nyomtató","Printer (JetDirect)":"Nyomtató (JetDirect)"}}};
+  "Ring camera / doorbell":"Ring kamera / csengő","Roomba robot vacuum":"Roomba robotporszívó","Gree air conditioner (WiFi module)":"Gree klíma (WiFi modul)","Tesla car":"Tesla autó","Shelly smart relay":"Shelly okosrelé",
+  "IoT smart home":"IoT okosotthon","LG TV / appliance":"LG TV / készülék","Denon / Marantz receiver":"Denon / Marantz erősítő","Sonos speaker":"Sonos hangszóró","HP printer / PC":"HP nyomtató / PC","Canon printer":"Canon nyomtató",
+  "Brother printer":"Brother nyomtató","Epson printer":"Epson nyomtató","Samsung phone / tablet / TV":"Samsung telefon / tablet / TV","Xiaomi phone / IoT":"Xiaomi telefon / IoT","Huawei phone":"Huawei telefon","OnePlus phone":"OnePlus telefon",
+  "Apple device":"Apple eszköz","Google Pixel phone":"Google Pixel telefon","Samsung phone":"Samsung telefon","Home theater receiver":"Házimozi erősítő","Printer":"Nyomtató","IP camera":"IP kamera","IoT / smart home":"IoT / okosotthon",
+  "Linux device / router":"Linux eszköz / router","Phone / laptop (private MAC)":"Telefon / laptop (privát MAC)","Printer (LPD)":"Nyomtató (LPD)","RTSP (camera)":"RTSP (kamera)","IPP printer":"IPP nyomtató","Printer (JetDirect)":"Nyomtató (JetDirect)",
+  "IoT / WiFi module":"IoT / WiFi modul","IoT / embedded (Murata WiFi module)":"IoT / beágyazott (Murata WiFi modul)","unknown (no ARP reply)":"ismeretlen (nincs ARP-válasz)"}}};
 let LANG=(()=>{try{return localStorage.getItem('wifiscan.lang')}catch(e){return null}})()||((navigator.language||'').startsWith('hu')?'hu':'en');
 const t=k=>T[LANG][k], tt=s=>T[LANG].types[s]||s;
-function applyLang(){document.documentElement.lang=LANG;document.getElementById('lang').textContent=LANG==='hu'?'EN':'HU';
+const $=id=>document.getElementById(id);
+function applyLang(){document.documentElement.lang=LANG;$('lang').textContent=LANG==='hu'?'EN':'HU';
   document.querySelectorAll('[data-i18n]').forEach(el=>{const v=t(el.dataset.i18n);if(typeof v==='string')el.textContent=v});
   document.querySelectorAll('[data-i18n-ph]').forEach(el=>el.placeholder=t(el.dataset.i18nPh));
-  if(!current)log.textContent='HACKERMAN: '+t('waiting');else render(current);showRuns();try{localStorage.setItem('wifiscan.lang',LANG)}catch(e){}}
-document.getElementById('lang').onclick=()=>{LANG=LANG==='hu'?'en':'hu';applyLang()};
-const log=document.getElementById('log'),out=document.getElementById('out'),sum=document.getElementById('summary'),run=document.getElementById('run'),mode=document.getElementById('mode');
-let typer=null;function type(text){if(typer)clearInterval(typer);log.textContent="";let i=0;typer=setInterval(()=>{log.textContent+=text[i++]||"";if(i>=text.length){clearInterval(typer);typer=null}},8)}
-const say=m=>type('HACKERMAN: '+m);
+  if(current)render(current);else $('log').textContent=t('waiting');showRuns();loadNets();try{localStorage.setItem('wifiscan.lang',LANG)}catch(e){}}
+$('lang').onclick=()=>{LANG=LANG==='hu'?'en':'hu';applyLang()};
+$('theme').onclick=()=>{const r=document.documentElement;const cur=r.dataset.theme||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');r.dataset.theme=cur==='dark'?'light':'dark';try{localStorage.setItem('wifiscan.theme',r.dataset.theme)}catch(e){}};
+try{const th=localStorage.getItem('wifiscan.theme');if(th)document.documentElement.dataset.theme=th}catch(e){}
+const log=$('log'),out=$('out'),sum=$('summary'),run=$('run');
+let MODE='discover';$('mode').querySelectorAll('button').forEach(b=>b.onclick=()=>{MODE=b.dataset.v;$('mode').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))});
+const say=m=>{log.textContent=m};
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 async function api(path,body){const r=await fetch(path,{method:'POST',headers:{'X-Token':TOKEN,'Content-Type':'application/json'},body:JSON.stringify(body||{})});if(!r.ok)throw new Error(r.status+' '+await r.text());return r.json()}
 function status(h){if(h.me)return 'ME';if(h.new)return 'NEW';if(h.trusted)return 'TRUSTED';if(h.type==='?'&&!h.label)return 'UNKNOWN';return 'SEEN'}
-const V=v=>`<span class="v v-${v}">${v}</span>`;
+const BC={NEW:'b-new',UNKNOWN:'b-unk',TRUSTED:'b-trusted',SEEN:'b-seen',ME:'b-me'};
+const V=v=>`<span class="badge ${BC[v]||'b-seen'}">${v}</span>`;
 let poll=null,current=null;const sel=new Set();
+function showLocation(net,isNew){if(!net)return;$('loc-label').value=net.label||'';$('loc-label').dataset.key=net.key;
+  $('loc-meta').textContent=[net.ssid?'SSID '+net.ssid:'',net.gateway_vendor?net.gateway_vendor:'',net.gateway_mac||'',net.subnet||''].filter(Boolean).join(' · ');
+  const b=$('loc-badge');b.hidden=false;b.className='badge '+(isNew?'b-new':'b-known');b.textContent=isNew?t('loc_new'):t('loc_known')}
+$('loc-label').onchange=()=>api('/api/network',{key:$('loc-label').dataset.key,label:$('loc-label').value}).then(()=>{loadNets();showRuns()}).catch(e=>say(e));
 function render(data){
   const hosts=data.hosts;out.innerHTML="";
   const c={NEW:0,UNKNOWN:0,TRUSTED:0,SEEN:0};hosts.forEach(h=>{const s=status(h);if(s in c)c[s]++});
-  sum.innerHTML='<div class="summary">'+`<div class="tile"><b>${hosts.length}</b><span>${t('online')}</span></div>`+
-    Object.entries(c).filter(([k,v])=>v).map(([k,v])=>`<div class="tile"><b class="v-${k}" style="border:0;animation:none">${v}</b><span>${k}</span></div>`).join('')+'</div>';
+  sum.innerHTML=`<div class="kpi"><b>${hosts.length}</b><span>${t('online')}</span></div><div class="kpi new"><b>${c.NEW}</b><span>${t('new_here')}</span></div><div class="kpi unk"><b>${c.UNKNOWN}</b><span>${t('unknown')}</span></div><div class="kpi trusted"><b>${c.TRUSTED}</b><span>${t('trusted')}</span></div><div class="kpi"><b>${c.SEEN}</b><span>${t('seen')}</span></div>`;
   const tb=document.createElement('table');
   tb.innerHTML='<tr><th></th>'+t('th').map(x=>'<th>'+x+'</th>').join('')+'</tr>'+
-    hosts.map(h=>`<tr><td>${h.me?'':`<input type="checkbox" data-ip="${esc(h.ip)}" ${sel.has(h.ip)?'checked':''}>`}</td><td>${V(status(h))}</td><td class="mac">${esc(h.ip)}</td><td class="mac">${esc(h.mac)}</td><td class="loc">${esc(tt(h.vendor))}</td><td>${esc(tt(h.type))}</td><td class="loc">${esc(h.name)}</td>
+    hosts.map(h=>`<tr><td>${h.me?'':`<input type="checkbox" data-ip="${esc(h.ip)}" ${sel.has(h.ip)?'checked':''}>`}</td><td>${V(status(h))}${h.known_elsewhere?` <span class="badge b-seen" title="${t('elsewhere')}">↔</span>`:''}</td><td class="mono">${esc(h.ip)}</td><td class="mono">${esc(h.mac)}</td><td>${esc(tt(h.vendor))}</td><td class="strong">${esc(tt(h.type))}</td><td class="mono">${esc(h.name)}</td>
     <td class="lbl"><input type="text" value="${esc(h.label)}" data-mac="${esc(h.mac)}" placeholder="${t('label_ph')}"></td>
     <td><button class="ghost sm" data-trust="${esc(h.mac)}" data-val="${h.trusted?0:1}">${h.trusted?t('untrust'):t('trust')}</button></td></tr>`+
-    ((h.ports&&h.ports.length)||h.services?`<tr><td></td><td></td><td colspan="7" class="ports">${h.ports&&h.ports.length?t('ports')+': '+h.ports.map(p=>`<b>${p}</b> ${esc(tt(data.hints[p]||''))}`).join(' · '):''}${h.services?`<pre class="svc">${esc(tt(h.services))}</pre>`:''}</td></tr>`:'')).join('');
-  out.appendChild(tb);current=data;document.getElementById('selbar').hidden=false;document.getElementById('sudo-hint').hidden=false;
+    ((h.ports&&h.ports.length)||h.services?`<tr class="sub-row"><td></td><td colspan="8">${h.ports&&h.ports.length?t('ports')+': '+h.ports.map(p=>`<b>${p}</b> ${esc(tt(data.hints[p]||''))}`).join(' · '):''}${h.services?`<pre class="svc">${esc(tt(h.services))}</pre>`:''}</td></tr>`:'')).join('');
+  out.appendChild(tb);current=data;$('selbar').hidden=false;$('sudo-hint').hidden=false;
+  if(data.network)showLocation(data.network,data.new_location);
   tb.querySelectorAll('input[type=checkbox]').forEach(c=>c.onchange=()=>{c.checked?sel.add(c.dataset.ip):sel.delete(c.dataset.ip);selCount()});selCount();
   tb.querySelectorAll('td.lbl input').forEach(i=>i.onchange=()=>api('/api/device',{mac:i.dataset.mac,label:i.value}).then(()=>say(t('label_stored')+' '+i.dataset.mac)).catch(e=>say(e)));
   tb.querySelectorAll('button[data-trust]').forEach(b=>b.onclick=()=>api('/api/device',{mac:b.dataset.trust,trusted:+b.dataset.val}).then(()=>{const h=hosts.find(x=>x.mac===b.dataset.trust);h.trusted=!!+b.dataset.val;render(data)}).catch(e=>say(e)));
 }
-function selCount(){document.getElementById('sel-count').textContent=sel.size?t('sel_n')(sel.size):t('sel_hint')}
-document.getElementById('sel-all').onclick=()=>{current.hosts.forEach(h=>{if(!h.me)sel.add(h.ip)});render(current)};
-document.getElementById('sel-none').onclick=()=>{sel.clear();render(current)};
-function watch(onDone,onEnd){poll=setInterval(async()=>{try{const s=await api('/api/status');if(s.log&&!typer)log.textContent='HACKERMAN: '+s.log;
+function selCount(){$('sel-count').textContent=sel.size?t('sel_n')(sel.size):t('sel_hint')}
+$('sel-all').onclick=()=>{current.hosts.forEach(h=>{if(!h.me)sel.add(h.ip)});render(current)};
+$('sel-none').onclick=()=>{sel.clear();render(current)};
+function watch(onDone,onEnd){poll=setInterval(async()=>{try{const s=await api('/api/status');if(s.log)say(s.log);
   if(s.done){clearInterval(poll);onEnd();if(s.error){say(t('fail')+' · '+s.error);return}onDone(s.result)}}catch(e){clearInterval(poll);onEnd();say(e)}},700)}
-document.getElementById('nmap-sel').onclick=async()=>{if(!sel.size){say(t('specify'));return}const b=document.getElementById('nmap-sel'),stop=document.getElementById('nmap-stop');
+$('nmap-sel').onclick=async()=>{if(!sel.size){say(t('specify'));return}const b=$('nmap-sel'),stop=$('nmap-stop');
   const end=()=>{b.disabled=false;run.disabled=false;stop.hidden=true};b.disabled=true;run.disabled=true;stop.hidden=false;
-  try{const pw=document.getElementById('sudo').value;await api('/api/nmap',{ips:[...sel],run_id:current.run_id,sudo:pw});say(t('nmap_on')(pw?'-O -sV':'-sV',sel.size));
+  try{const pw=$('sudo').value;await api('/api/nmap',{ips:[...sel],run_id:current.run_id,sudo:pw});say(t('nmap_on')(pw?'-O -sV':'-sV',sel.size));
     watch(r=>{for(const h of current.hosts)if(r.services[h.ip]!==undefined)h.services=r.services[h.ip];render(current);say(t('nmap_done')(Object.keys(r.services).length))},end)}
   catch(e){end();say(e)}};
-document.getElementById('nmap-stop').onclick=()=>api('/api/stop').then(()=>say(t('abort'))).catch(e=>say(e));
-async function loadSubnets(){try{const d=await api('/api/subnets');const dl=document.getElementById('subnets');dl.innerHTML=d.candidates.map(c=>`<option value="${c.cidr}">${c.source}</option>`).join('');
-  if(d.candidates.length){document.getElementById('subnet').value=d.candidates[0].cidr;document.getElementById('netv').textContent=t('detected')(d.iface,d.ip,d.candidates.map(c=>c.cidr+' ['+c.source+']').join(' · '))}}catch(e){}}
-run.onclick=async()=>{if(run.disabled)return;run.disabled=true;sel.clear();out.innerHTML="";sum.innerHTML="";
-  try{await api('/api/scan',{mode:mode.value,net:document.getElementById('subnet').value});say(t('scanning')+' '+mode.value.toUpperCase()+' ...');
-    watch(r=>{document.getElementById('subnet').value=r.network;render(r);say(t('online_msg')(r.hosts.length,r.hosts.filter(h=>h.new).length,r.run_id)+(r.warning?' · '+r.warning:''));showRuns()},()=>{run.disabled=false})}
+$('nmap-stop').onclick=()=>api('/api/stop').then(()=>say(t('abort'))).catch(e=>say(e));
+async function loadSubnets(){try{const d=await api('/api/subnets');$('subnets').innerHTML=d.candidates.map(c=>`<option value="${c.cidr}">${c.source}</option>`).join('');
+  if(d.candidates.length){$('subnet').value=d.candidates[0].cidr;$('netv').textContent=t('detected')(d.iface,d.ip,d.candidates.map(c=>c.cidr+' ['+c.source+']').join(' · '))}
+  if(d.network)showLocation(d.network,d.new_location)}catch(e){}}
+run.onclick=async()=>{if(run.disabled)return;run.disabled=true;sel.clear();out.innerHTML="";sum.innerHTML="";$('warnbox').hidden=true;
+  try{await api('/api/scan',{mode:MODE,net:$('subnet').value});say(t('scanning')+' · '+MODE);
+    watch(r=>{$('subnet').value=r.network_cidr;render(r);say(t('online_msg')(r.hosts.length,r.hosts.filter(h=>h.new).length,r.run_id));if(r.warning){$('warnbox').textContent=r.warning;$('warnbox').hidden=false}showRuns();loadNets()},()=>{run.disabled=false})}
   catch(e){run.disabled=false;say(e)}};
-function histTable(rows,cols,onclick){const h=document.getElementById('hist');
-  h.innerHTML='<table><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr>'+rows.map(r=>'<tr class="'+(onclick?'click':'')+'" data-id="'+esc(r.id)+'">'+cols.map(c=>'<td class="'+(c[2]||'')+'">'+(c[1](r))+'</td>').join('')+'</tr>').join('')+'</table>';
-  if(onclick)h.querySelectorAll('tr.click').forEach(tr=>tr.onclick=()=>onclick(+tr.dataset.id))}
-async function showRuns(){try{const H=t('h_runs');histTable(await api('/api/history',{limit:40}),[[H[0],r=>r.id],[H[1],r=>esc(r.ts.replace('T',' ')),'loc'],[H[2],r=>esc(r.mode)],[H[3],r=>esc(r.network),'loc'],[H[4],r=>r.n_hosts],[H[5],r=>r.n_new?V('NEW')+' '+r.n_new:'—']],loadRun)}catch(e){say(e)}}
-async function showDev(){try{const H=t('h_dev');histTable(await api('/api/devices'),[[H[0],r=>V(r.trusted?'TRUSTED':'SEEN')],[H[1],r=>esc(r.mac),'mac'],[H[2],r=>esc(r.label),'loc'],[H[3],r=>esc(tt(r.vendor)),'loc'],[H[4],r=>esc(r.last_ip),'mac'],[H[5],r=>esc(r.first_seen.replace('T',' ')),'loc'],[H[6],r=>esc(r.last_seen.replace('T',' ')),'loc'],[H[7],r=>r.seen_count]],null)}catch(e){say(e)}}
-async function loadRun(id){try{const d=await api('/api/run_get',{id});render(d);say(t('recalled')(id,d.hosts.length));window.scrollTo({top:log.offsetTop-80,behavior:'smooth'})}catch(e){say(e)}}
-document.getElementById('hist-runs').onclick=showRuns;document.getElementById('hist-dev').onclick=showDev;
+function table(el,rows,cols,onclick){el.innerHTML='<table><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr>'+rows.map(r=>'<tr class="'+(onclick?'click':'')+'" data-id="'+esc(r.id??r.key??'')+'">'+cols.map(c=>'<td class="'+(c[2]||'')+'">'+(c[1](r))+'</td>').join('')+'</tr>').join('')+'</table>';
+  if(onclick)el.querySelectorAll('tr.click').forEach(tr=>tr.onclick=()=>onclick(tr.dataset.id))}
+const fmt=s=>esc((s||'').replace('T',' ').slice(0,16));
+let HIST='runs';
+async function showRuns(){HIST='runs';$('hist-runs').classList.add('on');$('hist-dev').classList.remove('on');try{const H=t('h_runs');table($('hist'),await api('/api/history',{limit:40,network_key:$('netfilter').value||null}),[[H[0],r=>r.id],[H[1],r=>fmt(r.ts),'mono'],[H[2],r=>esc(r.location||r.network),'strong'],[H[3],r=>esc(r.mode)],[H[4],r=>r.n_hosts],[H[5],r=>r.n_new?V('NEW')+' '+r.n_new:'—']],id=>loadRun(+id))}catch(e){say(e)}}
+async function showDev(){HIST='dev';$('hist-dev').classList.add('on');$('hist-runs').classList.remove('on');try{const H=t('h_dev');table($('hist'),await api('/api/devices',{network_key:$('netfilter').value||null}),[[H[0],r=>V(r.trusted?'TRUSTED':'SEEN')],[H[1],r=>esc(r.mac),'mono'],[H[2],r=>esc(r.label),'strong'],[H[3],r=>esc(tt(r.vendor))],[H[4],r=>esc(tt(r.type||''))],[H[5],r=>esc(r.last_ip),'mono'],[H[6],r=>esc(r.location||'')],[H[7],r=>fmt(r.last_seen),'mono']],null)}catch(e){say(e)}}
+async function loadNets(){try{const nets=await api('/api/networks');const H=t('h_net');
+  table($('nets'),nets,[[H[0],n=>`<input type="text" value="${esc(n.label)}" data-key="${esc(n.key)}" style="padding:5px 8px;border-radius:8px;font-size:12.5px;width:130px">`+(n.ssid?`<div class="hint" style="margin:2px 0 0">SSID ${esc(n.ssid)}</div>`:'')],[H[1],n=>esc([n.gateway_vendor,n.gateway_mac].filter(Boolean).join(' ')),'mono'],[H[2],n=>esc(n.subnet),'mono'],[H[3],n=>n.run_count],[H[4],n=>n.n_devices],[H[5],n=>fmt(n.last_seen),'mono']],null);
+  $('nets').querySelectorAll('input').forEach(i=>i.onchange=()=>api('/api/network',{key:i.dataset.key,label:i.value}).then(()=>{loadNets();showRuns();if($('loc-label').dataset.key===i.dataset.key)$('loc-label').value=i.value}).catch(e=>say(e)));
+  const f=$('netfilter'),cur=f.value;f.innerHTML=`<option value="">${t('all_locations')}</option>`+nets.map(n=>`<option value="${esc(n.key)}">${esc(n.label)}</option>`).join('');f.value=cur}catch(e){}}
+$('netfilter').onchange=()=>HIST==='runs'?showRuns():showDev();
+async function loadRun(id){try{const d=await api('/api/run_get',{id});render(d);say(t('recalled')(id,d.hosts.length));location.hash='#devices'}catch(e){say(e)}}
+$('hist-runs').onclick=showRuns;$('hist-dev').onclick=showDev;
 async function exportAs(fmt,a){const r=await fetch('/api/export?format='+fmt,{method:'POST',headers:{'X-Token':TOKEN},body:'{}'});a.href=URL.createObjectURL(await r.blob())}
-for(const [id,fmt] of [['exp-csv','csv'],['exp-json','json']])document.getElementById(id).addEventListener('click',async function(e){if(this.dataset.ready){this.dataset.ready='';return}e.preventDefault();await exportAs(fmt,this);this.dataset.ready='1';this.click()});
+for(const [id,fmt] of [['exp-csv','csv'],['exp-json','json']])$(id).addEventListener('click',async function(e){if(this.dataset.ready){this.dataset.ready='';return}e.preventDefault();await exportAs(fmt,this);this.dataset.ready='1';this.click()});
+document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>document.querySelectorAll('nav a').forEach(x=>x.classList.toggle('on',x===a)));
 applyLang();loadSubnets();
-const t0=Date.now(),clk=document.getElementById('vhsclock');setInterval(()=>{const d=Math.floor((Date.now()-t0)/1000),h=Math.floor(d/3600),m=String(Math.floor(d%3600/60)).padStart(2,'0'),s=String(d%60).padStart(2,'0');clk.textContent=`SP ${h}:${m}:${s}`},1000);
 </script></body></html>
 """
 
@@ -342,9 +378,13 @@ class Job:
             hosts.sort(key=lambda h: [int(x) for x in h["ip"].split(".")])
             diag = wifiscan.diagnose_empty(hosts, my_ip)
             warn = " · ".join(x for x in (warn, diag) if x)
-            run_id, new = store.save_run(str(net), mode, hosts)
+            self.log = "LOCATION"
+            ident = wifiscan.network_identity(iface, net, oui)
+            run_id, new = store.save_run(str(net), mode, hosts, ident)
             store.decorate(hosts)
-            self.result = {"hosts": hosts, "run_id": run_id, "network": str(net), "hints": wifiscan.PORT_HINTS, "warning": warn}
+            self.result = {"hosts": hosts, "run_id": run_id, "network": str(net), "hints": wifiscan.PORT_HINTS, "warning": warn,
+                           "network": store.network_of_run(run_id), "new_location": store.last_location_new}
+            self.result["network_cidr"] = str(net)
         except Exception as e:
             self.error = str(e)
         finally:
@@ -396,7 +436,13 @@ class Handler(BaseHTTPRequestHandler):
                 out = {"started": True}
             elif path == "/api/subnets":
                 iface, my_ip, net = wifiscan.local_network()
-                out = {"iface": iface, "ip": my_ip, "candidates": wifiscan.detect_subnets(iface, my_ip)}
+                ident = wifiscan.network_identity(iface, net, wifiscan.load_oui())
+                nets = st.networks()
+                known = next((n for n in nets if n["key"] == ident["key"]), None) or \
+                        next((n for n in nets if n["key"] == "net:" + ident["subnet"]), None)
+                cur = known or dict(ident, label=ident["default_label"], run_count=0)
+                out = {"iface": iface, "ip": my_ip, "candidates": wifiscan.detect_subnets(iface, my_ip),
+                       "network": cur, "new_location": known is None}
             elif path == "/api/nmap":
                 ips = [str(ip) for ip in req.get("ips", [])][:64]
                 import ipaddress
@@ -412,11 +458,17 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/status":
                 out = {"done": job.done, "log": job.log, "error": job.error, "result": job.result if job.done else None}
             elif path == "/api/history":
-                out = st.runs(int(req.get("limit", 40)) or 40)
+                out = st.runs(int(req.get("limit", 40)) or 40, req.get("network_key") or None)
             elif path == "/api/run_get":
-                out = {"hosts": st.run_hosts(int(req.get("id", 0))), "hints": wifiscan.PORT_HINTS}
+                rid = int(req.get("id", 0))
+                out = {"hosts": st.run_hosts(rid), "hints": wifiscan.PORT_HINTS, "run_id": rid, "network": st.network_of_run(rid), "new_location": False}
             elif path == "/api/devices":
-                out = st.devices()
+                out = st.devices(req.get("network_key") or None)
+            elif path == "/api/networks":
+                out = st.networks()
+            elif path == "/api/network":
+                st.set_network_label(str(req["key"]), str(req.get("label", ""))[:80])
+                out = {"ok": True}
             elif path == "/api/device":
                 st.set_device(str(req["mac"]), req.get("label"), req.get("trusted"))
                 out = {"ok": True}
