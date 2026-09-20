@@ -139,6 +139,15 @@ def current_ssid(iface):
         if m and "redacted" not in m.group(1):
             return m.group(1).strip()
         return ""
+
+
+def preferred_ssid_guess(iface):
+    """macOS 14+ kitakarja az SSID-t helymeghatározási engedély nélkül. Tipp: a preferált hálózatok
+    listájának tetején általában az aktuálisan csatlakozott WiFi áll. Csak javaslat, a felhasználó javíthatja."""
+    if sys.platform != "darwin":
+        return ""
+    lines = _run(["networksetup", "-listpreferredwirelessnetworks", iface]).splitlines()[1:]
+    return lines[0].strip() if lines else ""
     out = _run(["iwgetid", "-r"]) or _run(["nmcli", "-t", "-f", "active,ssid", "dev", "wifi"])
     for line in out.splitlines():
         if line.startswith("yes:"):
@@ -163,10 +172,11 @@ def network_identity(iface, net, oui=None):
         if m:
             gw_mac = ":".join(p.zfill(2) for p in m.group(1).split(":")).upper()
     ssid = current_ssid(iface)
+    guess = "" if ssid else preferred_ssid_guess(iface)
     gw_vendor = vendor(gw_mac, oui or {}) if gw_mac else ""
     key = f"gw:{gw_mac}" if gw_mac else f"net:{net}"
-    label = ssid or (f"{gw_vendor} {net}" if gw_vendor and gw_vendor != "unknown" else str(net))
-    return {"key": key, "ssid": ssid, "gateway_ip": gw_ip, "gateway_mac": gw_mac,
+    label = ssid or (f"{guess} (?)" if guess else "") or (f"{gw_vendor} {net}" if gw_vendor and gw_vendor != "unknown" else str(net))
+    return {"key": key, "ssid": ssid, "ssid_guess": guess, "gateway_ip": gw_ip, "gateway_mac": gw_mac,
             "gateway_vendor": gw_vendor, "subnet": str(net), "default_label": label}
 
 
