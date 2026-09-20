@@ -25,6 +25,8 @@ class Store:
         new = 0
         cur = self.db.cursor()
         for h in hosts:
+            if len(h["mac"]) < 8:
+                h["mac"] = "?@" + h["ip"]              # nincs ARP-válasz: IP alapján tartjuk nyilván
             row = cur.execute("SELECT mac FROM devices WHERE mac=?", (h["mac"],)).fetchone()
             if row is None:
                 new += 1

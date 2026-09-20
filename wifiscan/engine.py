@@ -24,15 +24,54 @@ PORT_HINTS = {
 COMMON_PORTS = sorted(PORT_HINTS)
 
 
+def default_interface():
+    """A default route interfésze (WiFi nem mindig en0: Intel Mac-en gyakran en1)."""
+    try:
+        if sys.platform == "darwin":
+            out = subprocess.check_output(["route", "-n", "get", "default"], text=True, stderr=subprocess.DEVNULL)
+            m = re.search(r"interface:\s*(\S+)", out)
+        else:
+            out = subprocess.check_output(["ip", "route", "show", "default"], text=True, stderr=subprocess.DEVNULL)
+            m = re.search(r"\bdev\s+(\S+)", out)
+        return m.group(1) if m else None
+    except Exception:
+        return None
+
+
+def iface_network(iface):
+    """IP + valódi netmaszk az interfészről (ifconfig / ip addr). Nagy hálózatot /22-re szűkítünk a saját IP körül."""
+    try:
+        if sys.platform == "darwin":
+            out = subprocess.check_output(["ifconfig", iface], text=True, stderr=subprocess.DEVNULL)
+            m = re.search(r"inet (\d+\.\d+\.\d+\.\d+) netmask 0x([0-9a-f]{8})", out)
+            if not m:
+                return None
+            ip, mask = m.group(1), int(m.group(2), 16)
+            prefix = bin(mask).count("1")
+        else:
+            out = subprocess.check_output(["ip", "-4", "-o", "addr", "show", iface], text=True, stderr=subprocess.DEVNULL)
+            m = re.search(r"inet (\d+\.\d+\.\d+\.\d+)/(\d+)", out)
+            if not m:
+                return None
+            ip, prefix = m.group(1), int(m.group(2))
+    except Exception:
+        return None
+    if prefix < 22:
+        prefix = 22                                    # max 1022 cím, a saját IP körül
+    return ip, ipaddress.ip_network(f"{ip}/{prefix}", strict=False)
+
+
 def local_network():
-    """Aktív interfész IP-je és /24 alhálózata (macOS)."""
-    for iface in ("en0", "en1"):
-        try:
-            ip = subprocess.check_output(["ipconfig", "getifaddr", iface], text=True).strip()
-            if ip:
-                return iface, ip, ipaddress.ip_network(ip + "/24", strict=False)
-        except subprocess.CalledProcessError:
-            pass
+    """Aktív interfész, saját IP és alhálózat. Sorrend: default route interfésze, majd en0/en1/wlan0/eth0."""
+    cands = [i for i in [default_interface()] if i] + ["en0", "en1", "wlan0", "eth0"]
+    seen = set()
+    for iface in cands:
+        if iface in seen or iface.startswith(("utun", "tun", "ipsec", "ppp", "lo")):
+            continue
+        seen.add(iface)
+        r = iface_network(iface)
+        if r:
+            return iface, r[0], r[1]
     sys.exit("No active WiFi/Ethernet interface found.")
 
 
@@ -59,18 +98,76 @@ def vpn_warning(iface, net):
     return ""
 
 
-def ping_sweep(net):
-    """Minden címre egy ping, hogy feltöltse az ARP-táblát."""
-    def ping(ip):
-        subprocess.run(["ping", "-c", "1", "-W", "300", str(ip)],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    with cf.ThreadPoolExecutor(64) as ex:
-        list(ex.map(ping, net.hosts()))
+def _ping(ip, timeout_ms):
+    if sys.platform == "darwin":
+        # -i 0.2 + -t 1: a macOS ping egyébként +1 s-ot vár a -W után; így max ~0.7 s egy halott cím
+        cmd = ["ping", "-c", "1", "-i", "0.2", "-W", str(timeout_ms), "-t", "1", str(ip)]
+    else:
+        cmd = ["ping", "-c", "1", "-W", str(max(1, timeout_ms // 1000)), str(ip)]
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def ping_sweep(net, timeout_ms=600):
+    """Egy menet minden címre (ARP-tábla feltöltése), aztán második menet csak a még hiányzókra."""
+    hosts = list(net.hosts())
+    with cf.ThreadPoolExecutor(128) as ex:
+        list(ex.map(lambda ip: _ping(ip, timeout_ms), hosts))
+    seen = set(arp_table(net))
+    missing = [ip for ip in hosts if str(ip) not in seen]
+    with cf.ThreadPoolExecutor(128) as ex:
+        list(ex.map(lambda ip: _ping(ip, timeout_ms), missing))
+
+
+def discover(net):
+    """Teljes felderítés: ping sweep + mDNS/SSDP multicast, ARP-tábla pihentetés után. -> {ip: host}"""
+    ping_sweep(net)
+    mc = multicast_probe()
+    time.sleep(1.5)
+    hosts = arp_table(net)
+    for ip, hint in mc.items():
+        if ipaddress.ip_address(ip) not in net:
+            continue
+        h = hosts.setdefault(ip, {"ip": ip, "mac": "?"})
+        h["hint"] = hint
+    return hosts
+
+
+def multicast_probe(timeout=1.5):
+    """mDNS (5353) és SSDP (1900) multicast kérdés: a pingre nem válaszoló, de hirdető eszközök is ARP-bejegyzést kapnak.
+    Visszaadja {ip: hint} – SSDP SERVER / mDNS név, ha kiolvasható."""
+    found = {}
+    ssdp = ("M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 1\r\nST: ssdp:all\r\n\r\n").encode()
+    # mDNS: PTR kérdés _services._dns-sd._udp.local (id 0, QU bit)
+    mdns = bytes.fromhex("000000000001000000000000") + b"\x09_services\x07_dns-sd\x04_udp\x05local\x00" + b"\x00\x0c\x80\x01"
+    for addr, payload, port in ((("239.255.255.250", 1900), ssdp, 1900), (("224.0.0.251", 5353), mdns, 5353)):
+        try:
+            so = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            so.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            so.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+            so.settimeout(0.3)
+            so.sendto(payload, addr); so.sendto(payload, addr)
+            end = time.time() + timeout
+            while time.time() < end:
+                try:
+                    data, (ip, _) = so.recvfrom(4096)
+                except socket.timeout:
+                    continue
+                hint = ""
+                if port == 1900:
+                    m = re.search(rb"(?im)^SERVER:\s*(.+?)\r?$", data)
+                    hint = m.group(1).decode(errors="ignore").strip() if m else "UPnP"
+                else:
+                    hint = "mDNS"
+                found.setdefault(ip, hint)
+            so.close()
+        except OSError:
+            pass
+    return found
 
 
 def arp_table(net):
     """arp -a kimenetből IP+MAC párok az alhálózaton."""
-    out = subprocess.check_output(["arp", "-a"], text=True)
+    out = subprocess.check_output(["arp", "-an"], text=True)      # -n: nincs reverse DNS, különben másodperceket vár
     hosts = {}
     for m in re.finditer(r"\((\d+\.\d+\.\d+\.\d+)\) at ([0-9a-f:]+|\(incomplete\))", out):
         ip, mac = m.group(1), m.group(2)
@@ -93,6 +190,14 @@ def _download(url, dest):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (wifiscan)"})
     with urllib.request.urlopen(req, timeout=20) as r, open(dest, "wb") as f:
         f.write(r.read())
+
+
+def diagnose_empty(hosts, my_ip):
+    """Ha csak a saját gép látszik: tipp a felhasználónak."""
+    if len([h for h in hosts if h["ip"] != my_ip]) == 0:
+        return ("Only this machine answered. Likely causes: client isolation on this WiFi (guest network), "
+                "a VPN taking the route, or the network being larger than the scanned range.")
+    return ""
 
 
 def load_oui():
@@ -133,11 +238,21 @@ def load_oui():
 
 
 def vendor(mac, oui):
+    if len(mac) < 8:
+        return "unknown (no ARP reply)"
     prefix = mac.replace(":", "")[:6]
     second_nibble = int(mac[1], 16)
     if second_nibble & 0x2:
         return "(randomized MAC – phone/laptop private address)"
     return oui.get(prefix, "unknown")
+
+
+def resolve_names(hosts, workers=32):
+    """Reverse DNS párhuzamosan (soros híváskor 40 eszköznél másodpercek mennek el)."""
+    with cf.ThreadPoolExecutor(workers) as ex:
+        for h, name in zip(hosts, ex.map(lambda h: reverse_name(h["ip"]), hosts)):
+            h["name"] = name
+    return hosts
 
 
 def reverse_name(ip):
@@ -219,7 +334,8 @@ def shutil_which(cmd):
 
 
 VENDOR_RULES = [
-    ("ubiquiti", "UniFi router / AP / switch"), ("tp-link", "Router / AP"), ("asus", "Router / AP"),
+    ("ubiquiti", "UniFi router / AP / switch"), ("routerboard", "MikroTik router"), ("mikrotik", "MikroTik router"),
+    ("shenzhen bilian", "IoT / WiFi module"), ("murata", "IoT / embedded (Murata WiFi module)"), ("tp-link", "Router / AP"), ("asus", "Router / AP"),
     ("netgear", "Router / AP"), ("mikrotik", "Router"), ("zte", "Router / AP"),
     ("amazon", "Amazon Echo / Fire TV"), ("ring", "Ring camera / doorbell"), ("irobot", "Roomba robot vacuum"),
     ("nintendo", "Nintendo Switch"), ("sony interactive", "PlayStation"), ("microsoft", "Xbox / PC"),
@@ -247,6 +363,13 @@ NAME_RULES = [
 
 def guess_type(h):
     v, ports, name = h["vendor"].lower(), h.get("ports", []), h.get("name", "").lower()
+    hint = h.get("hint", "").lower()
+    if "routeros" in hint or "mikrotik" in hint: return "MikroTik router"
+    if "chromecast" in hint or "google" in hint and "upnp" in hint: return "Chromecast / Google"
+    if "sonos" in hint: return "Sonos speaker"
+    if "webos" in hint or "lg" in hint and "tv" in hint: return "LG webOS TV"
+    if "roku" in hint: return "Roku"
+    if "synology" in hint: return "Synology NAS"
     # 1. portok – a legbiztosabb jel
     if 62078 in ports: return "iPhone/iPad"
     if 8009 in ports: return "Chromecast / Android TV"
@@ -257,9 +380,9 @@ def guess_type(h):
     for key, label in NAME_RULES:
         if key in name:
             return label
-    # 3. gyártó
+    # 3. gyártó – szóhatáron illesztve ("ring" ne találjon a "Manufacturing"-ra)
     for key, label in VENDOR_RULES:
-        if key in v:
+        if re.search(r"(?<![a-z0-9])" + re.escape(key) + r"(?![a-z0-9])", v):
             return label
     # 4. portmintázat
     if 1883 in ports: return "IoT / smart home"
@@ -282,8 +405,7 @@ def main():
     if w:
         print("[!] " + w, file=sys.stderr)
     print("[*] Ping sweep (populating ARP table)…")
-    ping_sweep(net)
-    hosts = arp_table(net)
+    hosts = discover(net)
     print(f"[*] {len(hosts)} devices answered. Vendor and name lookup…")
     oui = load_oui()
 

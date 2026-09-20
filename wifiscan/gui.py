@@ -189,7 +189,7 @@ hu:{tagline:"Hálózati eszközleltár · Power Glove kiadás",sub:"Ki van a WiF
   "Samsung phone":"Samsung telefon","TV":"TV","LG webOS TV":"LG webOS TV","Laptop":"Laptop","PC":"PC","Home theater receiver":"Házimozi erősítő","UniFi gateway":"UniFi gateway","UniFi AP":"UniFi AP","UniFi switch":"UniFi switch",
   "Printer":"Nyomtató","NAS":"NAS","Amazon Echo":"Amazon Echo","Chromecast":"Chromecast","iPhone/iPad":"iPhone/iPad","Chromecast / Android TV":"Chromecast / Android TV","IP camera":"IP kamera","Apple TV / AirPlay":"Apple TV / AirPlay",
   "IoT / smart home":"IoT / okosotthon","NAS / PC":"NAS / PC","Linux device / router":"Linux eszköz / router","Phone / laptop (private MAC)":"Telefon / laptop (privát MAC)",
-  "Printer (LPD)":"Nyomtató (LPD)","RTSP (camera)":"RTSP (kamera)","IPP printer":"IPP nyomtató","Printer (JetDirect)":"Nyomtató (JetDirect)"}}};
+  "MikroTik router":"MikroTik router","IoT / WiFi module":"IoT / WiFi modul","IoT / embedded (Murata WiFi module)":"IoT / beágyazott (Murata WiFi modul)","Chromecast / Google":"Chromecast / Google","Roku":"Roku","unknown (no ARP reply)":"ismeretlen (nincs ARP-válasz)","Printer (LPD)":"Nyomtató (LPD)","RTSP (camera)":"RTSP (kamera)","IPP printer":"IPP nyomtató","Printer (JetDirect)":"Nyomtató (JetDirect)"}}};
 let LANG=(()=>{try{return localStorage.getItem('wifiscan.lang')}catch(e){return null}})()||((navigator.language||'').startsWith('hu')?'hu':'en');
 const t=k=>T[LANG][k], tt=s=>T[LANG].types[s]||s;
 function applyLang(){document.documentElement.lang=LANG;document.getElementById('lang').textContent=LANG==='hu'?'EN':'HU';
@@ -311,16 +311,16 @@ class Job:
             iface, my_ip, net = wifiscan.local_network()
             warn = wifiscan.vpn_warning(iface, net)
             self.log = (warn + " · " if warn else "") + "PING SWEEP %s" % net
-            wifiscan.ping_sweep(net)
-            hosts = list(wifiscan.arp_table(net).values())
+            hosts = list(wifiscan.discover(net).values())
             if not any(h["ip"] == my_ip for h in hosts):
                 hosts.append({"ip": my_ip, "mac": "00:00:00:00:00:00"})
             self.log = "%d HOSTS · VENDOR LOOKUP" % len(hosts)
             oui = wifiscan.load_oui()
+            wifiscan.resolve_names(hosts)
             for i, h in enumerate(hosts, 1):
                 h["me"] = h["ip"] == my_ip
                 h["vendor"] = "this machine" if h["me"] else wifiscan.vendor(h["mac"], oui)
-                h["name"] = wifiscan.reverse_name(h["ip"])
+                h["name"] = h.get("name") or h.get("hint", "")
                 if mode in ("ports", "nmap"):
                     self.log = "PORT SCAN %d/%d · %s" % (i, len(hosts), h["ip"])
                     h["ports"] = wifiscan.scan_ports(h["ip"])
@@ -329,6 +329,8 @@ class Job:
                     h["services"] = wifiscan.nmap_services(h["ip"])
                 h["type"] = "this machine" if h["me"] else wifiscan.guess_type(h)
             hosts.sort(key=lambda h: [int(x) for x in h["ip"].split(".")])
+            diag = wifiscan.diagnose_empty(hosts, my_ip)
+            warn = " · ".join(x for x in (warn, diag) if x)
             run_id, new = store.save_run(str(net), mode, hosts)
             store.decorate(hosts)
             self.result = {"hosts": hosts, "run_id": run_id, "network": str(net), "hints": wifiscan.PORT_HINTS, "warning": warn}
