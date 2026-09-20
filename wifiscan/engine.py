@@ -400,7 +400,8 @@ def nmap_services(ip, sudo_pw=None, on_proc=None):
     nmap = shutil_which("nmap")
     if not nmap:
         return "nmap not installed"
-    cmd = [nmap, "-sV", "-T4", "--top-ports", "100", ip]
+    # -Pn: a hostot az ARP-ból már ismerjük; az nmap saját ping/TCP felderítését sok telefon és IoT eszköz blokkolja
+    cmd = [nmap, "-Pn", "-sV", "-T4", "--top-ports", "100", ip]
     inp = None
     if sudo_pw:
         cmd = ["sudo", "-S", "-k", "-p", "", nmap, "-O", "--osscan-guess"] + cmd[1:]
