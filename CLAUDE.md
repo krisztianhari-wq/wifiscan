@@ -4,7 +4,7 @@ Otthoni hálózati eszközleltár: ki van a WiFi-n, milyen eszköz, milyen szolg
 
 ## Indítás és teszt
 - `python3 -m wifiscan` (= GUI, 127.0.0.1:8766, böngészőt nyit), `python3 -m wifiscan scan [--ports] [--nmap] [--json out.json]` terminálban. Opciók: `gui --port --db --no-browser`. Előzmény-DB: `~/.wifiscan/history.db`.
-- launch.json (`~/Claude_code/.claude/launch.json`): `wifiscan-gui` (port 8766, eldobható DB – a konfigban egy régi session scratchpadjára mutat, cseréld friss útvonalra) és `wifiscan-live` (port 8766, valódi előzmény). A `pqcheck-gui` is 8766-ot használ – egyszerre csak egyik fusson.
+- launch.json (`~/Claude_code/.claude/launch.json`): `wifiscan-gui` (port 8767, eldobható DB: `/tmp/wifiscan-dev.db`) és `wifiscan-live` (port 8768, valódi előzmény).
 - Automatikus teszt nincs. Kézi teszt: GUI → szkennelés a saját hálózaton, ellenőrizd a helyszín-csoportosítást és a NEW jelölést.
 
 ## Felépítés
